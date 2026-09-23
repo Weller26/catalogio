@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:18.6
+    container_name: catalogio
+    environment:
+      POSTGRES_DB: "${DB_NAME}"
+      POSTGRES_USER: "${DB_USER}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD}"
+
+    ports:
+      - "${DB_PORT}:5432"
+    
+    volumes:
+      - pgdata:/var/lib/postgresql
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  migrate:
+    image: migrate/migrate:v4.18.1
+    container_name: catalogio-migrate
+    volumes:
+      - ./migrations:/migrations
+    command: [
+      "-path", "/migrations",
+      "-database", "postgres://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}?sslmode=disable",
+      "up"
+    ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
