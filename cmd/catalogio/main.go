@@ -12,6 +12,8 @@ import (
 
 	"github.com/Weller26/catalogio/internal/auth"
 	"github.com/Weller26/catalogio/internal/database"
+	"github.com/Weller26/catalogio/internal/httpapi"
+	"github.com/Weller26/catalogio/internal/items"
 
 	"github.com/joho/godotenv"
 )
@@ -46,52 +48,62 @@ func main() {
 	log.Println("Successful connection to PostgreSQL")
 
 	authRepo := auth.NewRepository(db.Pool)
-
 	authService := auth.NewService(
 		authRepo,
-		7*24*time.Hour,
+		os.Getenv("JWT_SECRET"),
 	)
-
 	authHandler := auth.NewHandler(
 		authService,
 		false,
 	)
 
-	mux := http.NewServeMux()
+	itemRepository := items.NewRepository(db.Pool)
+	itemService := items.NewService(itemRepository)
+	itemHandler := items.NewHandler(itemService)
 
-	mux.HandleFunc(
-		"POST /api/v1/auth/register",
-		authHandler.Register,
-	)
-
-	mux.HandleFunc(
-		"POST /api/v1/auth/login",
-		authHandler.Login,
-	)
-
-	mux.HandleFunc(
-		"POST /api/v1/auth/logout",
-		authHandler.Logout,
-	)
-
-	meHandler := http.HandlerFunc(
-		authHandler.Me,
-	)
-
-	mux.Handle(
-		"GET /api/v1/me",
-		authService.RequireAuth(meHandler),
+	router := httpapi.NewRouter(
+		authService,
+		authHandler,
+		itemHandler,
 	)
 
 	server := http.Server{
 		Addr: fmt.Sprintf(":%s", os.Getenv("SERVER_PORT")),
-		Handler: mux,
+		Handler: router,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	log.Printf("server started on :%s", os.Getenv("SERVER_PORT"))
+	go func() {
+		log.Printf(
+			"server started on: %s",
+			os.Getenv("SERVER_PORT"),
+		)
 
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
+		if err := server.ListenAndServe(); err != nil &&
+			err != http.ErrServerClosed {
+			log.Fatalf(
+				"server error: %v",
+				err,
+			)
+		}
+	}()
+
+	<-ctx.Done()
+
+	log.Println("shutting down server...")
+
+	shutdownCtx, cancel := context.WithTimeout(
+		context.Background(),
+		10 * time.Second,
+	)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf(
+			"server shutdown error: %v",
+			err,
+		)
 	}
+
+	log.Println("server stopped")
 }

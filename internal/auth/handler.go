@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+const (
+	// accessTokenCookie = "catalogio_access_token"
+	refreshTokenCookie = "catalogio_refresh_token"
+)
+
 type Handler struct {
 	service *Service
 	secureCookies bool
@@ -100,7 +105,7 @@ func (h *Handler) Login(
 		return
 	}
 
-	user, token, err := h.service.Login(
+	user, accessToken, refreshToken, err := h.service.Login(
 		r.Context(),
 		req,
 	)
@@ -123,47 +128,93 @@ func (h *Handler) Login(
 		return
 	}
 
-	h.setSessionCookie(w, token)
+	//h.setAccessTokenCookie(w, accessToken)
+	h.setRefreshTokenCookie(w, refreshToken)
 
-	writeJSON(w, http.StatusOK, user)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user": user,
+		"access_token": accessToken,
+	})
 }
 
 func (h *Handler) Logout(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	cookie, err := r.Cookie(
-		"catalogio_session",
-	)
+	cookie, err := r.Cookie(refreshTokenCookie)
 
 	if err == nil {
-		_ = h.service.Logout(
+		err = h.service.Logout(
 			r.Context(),
 			cookie.Value,
 		)
+
+		if err != nil {
+			writeError(
+				w,
+				http.StatusInternalServerError,
+				"internal server error",
+			)
+			return
+		}
 	}
 
-	http.SetCookie(
-		w,
-		&http.Cookie{
-			Name: "catalogio_session",
-			Value: "",
-			Path: "/",
-			HttpOnly: true,
-			Secure: h.secureCookies,
-			SameSite: http.SameSiteLaxMode,
-			MaxAge: -1,
-		},
+	h.deleteCookie(w, refreshTokenCookie)
+
+	writeJSON(w, http.StatusOK, map[string]string{
+		"message": "logged out",
+	})
+}
+
+func (h *Handler) Refresh(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	cookie, err := r.Cookie(refreshTokenCookie)
+
+	if err != nil {
+		writeError(
+			w,
+			http.StatusUnauthorized,
+			"refresh token required",
+		)
+		return
+	}
+
+	accessToken, err := h.service.Refresh(
+		r.Context(),
+		cookie.Value,
 	)
 
-	w.WriteHeader(http.StatusNoContent)
+	if errors.Is(err, ErrInvalidCredentials) {
+		writeError(
+			w,
+			http.StatusUnauthorized,
+			"invalid refresh token",
+		)
+		return
+	}
+
+	if err != nil {
+		writeError(
+			w,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{
+			"access_token": accessToken,
+		},
+	)
 }
 
 func (h *Handler) Me(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	user, ok := UserFromContext(
+	userID, ok := UserIDFromContext(
 		r.Context(),
 	)
 
@@ -176,6 +227,20 @@ func (h *Handler) Me(
 		return
 	}
 
+	user, err := h.service.repo.GetUserByID(
+		r.Context(),
+		userID,
+	)
+
+	if err != nil {
+		writeError(
+			w,
+			http.StatusInternalServerError,
+			"internal server error",
+		)
+		return
+	}
+
 	writeJSON(
 		w,
 		http.StatusOK,
@@ -183,20 +248,56 @@ func (h *Handler) Me(
 	)
 }
 
-func (h *Handler) setSessionCookie(
+// func (h *Handler) setAccessTokenCookie(
+// 	w http.ResponseWriter,
+// 	token string,
+// ) {
+// 	http.SetCookie(
+// 		w,
+// 		&http.Cookie{
+// 			Name: accessTokenCookie,
+// 			Value: token,
+// 			Path: "/",
+// 			HttpOnly: true,
+// 			Secure: h.secureCookies,
+// 			SameSite: http.SameSiteLaxMode,
+// 			MaxAge: int((15 * time.Minute).Seconds()),
+// 		},
+// 	)
+// }
+
+func (h *Handler) setRefreshTokenCookie(
 	w http.ResponseWriter,
 	token string,
 ) {
 	http.SetCookie(
 		w,
 		&http.Cookie{
-			Name: "catalogio_session",
+			Name: refreshTokenCookie,
 			Value: token,
 			Path: "/",
 			HttpOnly: true,
 			Secure: h.secureCookies,
 			SameSite: http.SameSiteLaxMode,
-			MaxAge: int((7 * 24 * time.Hour).Seconds()),
+			MaxAge: int((24 * time.Hour).Seconds()),
+		},
+	)
+}
+
+func (h *Handler) deleteCookie(
+	w http.ResponseWriter,
+	name string,
+) {
+	http.SetCookie(
+		w,
+		&http.Cookie{
+			Name: name,
+			Value: "",
+			Path: "/",
+			HttpOnly: true,
+			Secure: h.secureCookies,
+			SameSite: http.SameSiteLaxMode,
+			MaxAge: -1,
 		},
 	)
 }

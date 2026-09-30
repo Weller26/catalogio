@@ -4,20 +4,33 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 type contextKey string
 
-const userContextKey contextKey = "user"
+const userIDContextKey contextKey = "user_id"
 
-func UserFromContext(
+// func UserFromContext(
+// 	ctx context.Context,
+// ) (User, bool) {
+// 	user, ok := ctx.Value(
+// 		userContextKey,
+// 	).(User)
+
+// 	return user, ok
+// }
+
+func UserIDFromContext(
 	ctx context.Context,
-) (User, bool) {
-	user, ok := ctx.Value(
-		userContextKey,
-	).(User)
+) (uuid.UUID, bool) {
+	userID, ok := ctx.Value(
+		userIDContextKey,
+	).(uuid.UUID)
 
-	return user, ok
+	return userID, ok
 }
 
 func (s *Service) RequireAuth(
@@ -25,52 +38,67 @@ func (s *Service) RequireAuth(
 ) http.Handler {
 	return http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
-			cookie, err := r.Cookie(
-				"catalogio_session",
-			)
+			authHeader := r.Header.Get("Authorization")
 
-			if err != nil {
+			if authHeader == "" {
 				writeError(
 					w,
 					http.StatusUnauthorized,
-					"unauthorized",
+					"autorization required",
 				)
 				return
 			}
 
-			user, err := s.Authenticate(
-				r.Context(),
-				cookie.Value,
+			parts := strings.SplitN(
+				authHeader,
+				" ",
+				2,
 			)
 
-			if errors.Is(err, ErrNotFound) || errors.Is(err, ErrInvalidCredentials) {
+			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
 				writeError(
 					w,
 					http.StatusUnauthorized,
-					"unauthorized",
+					"invalid authorization header",
 				)
 				return
 			}
 
-			if err != nil {
-				writeError(
-					w,
-					http.StatusInternalServerError,
-					"internal server error",
-				)
-				return
-			}
+			accessToken := parts[1]
 
-			ctx := context.WithValue(
+			userID, err := s.Authenticate(
 				r.Context(),
-				userContextKey,
-				user,
+				accessToken,
 			)
 
-			next.ServeHTTP(
-				w,
-				r.WithContext(ctx),
-			)
+			if errors.Is(err, ErrInvalidCredentials) {
+                writeError(
+                    w,
+                    http.StatusUnauthorized,
+                    "unauthorized",
+                )
+                return
+            }
+
+            if err != nil {
+                writeError(
+                    w,
+                    http.StatusInternalServerError,
+                    "internal server error",
+                )
+                return
+            }
+
+            ctx := context.WithValue(
+                r.Context(),
+                userIDContextKey,
+                userID,
+            )
+
+            next.ServeHTTP(
+                w,
+                r.WithContext(ctx),
+            )
 		},
 	)
 }

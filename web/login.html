@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalogio — Вход</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<main class="auth-page">
+    <section class="auth-card">
+        <div class="logo">Catalogio</div>
+
+        <h1>С возвращением</h1>
+        <p class="subtitle">
+            Войди, чтобы продолжить работу с каталогом.
+        </p>
+
+        <form id="login-form" class="auth-form">
+            <label for="email">Email</label>
+            <input
+                id="email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                required
+            >
+
+            <label for="password">Пароль</label>
+            <input
+                id="password"
+                name="password"
+                type="password"
+                placeholder="••••••••"
+                required
+            >
+
+            <button type="submit" class="button button-primary">
+                Войти
+            </button>
+        </form>
+
+        <p id="error-message" class="error-message"></p>
+
+        <p class="auth-footer">
+            Нет аккаунта?
+            <a href="/register">Зарегистрироваться</a>
+        </p>
+    </section>
+</main>
+
+<script src="/static/js/auth.js"></script>
+
+</body>
+</html>
