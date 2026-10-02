@@ -98,7 +98,7 @@
             <input
                 id="item-title"
                 type="text"
-                placeholder="Например, Interstellar"
+                placeholder="Введите название..."
                 required
             >
 
@@ -110,16 +110,40 @@
             ></textarea>
 
             <div class="form-row">
-
                 <div class="form-field">
-                    <label for="item-type">Тип</label>
+                    <div class="field-header">
+                        <label for="item-type">Тип</label>
+                        <div>
+                            <button type="button" id="add-type-button" 
+                            class="button-icon-add" title="Добавить свой тип">
+                                +
+                            </button>
+                            <button type="button" id="manage-types-button" 
+                            class="button-icon-add" title="Управление типами">
+                                ⚙
+                            </button>
+                        </div>
+                    </div>
+                    
                     <select id="item-type">
                         <option value="">Без типа</option>
                     </select>
                 </div>
 
                 <div class="form-field">
-                    <label for="item-status">Статус</label>
+                    <div class="field-header">
+                        <label for="item-status">Статус</label>
+                        <div>
+                            <button type="button" id="add-status-button" 
+                            class="button-icon-add" title="Добавить свой статус">
+                                +
+                            </button>
+                            <button type="button" id="manage-statuses-button" 
+                            class="button-icon-add" title="Управление статусами">
+                                ⚙
+                            </button>
+                        </div>
+                    </div>
                     <select id="item-status">
                         <option value="">Без статуса</option>
                     </select>
@@ -166,6 +190,20 @@
             </div>
 
         </form>
+    </section>
+</div>
+
+<div id="manage-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <section class="modal-card">
+        <div class="modal-header">
+            <h2 id="manage-modal-title">Управление</h2>
+            <button id="close-manage-modal-button" class="modal-close" type="button">
+                ×
+            </button>
+        </div>
+
+        <ul id="manage-items-list" class="manage-list"></ul>
     </section>
 </div>
 

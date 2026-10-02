@@ -1,3 +1,28 @@
+const STATUS_TRANSLATIONS = {
+    "Planned": "Запланировано",
+    "In progress": "В процессе",
+    "Completed": "Завершено",
+    "Dropped": "Брошено"
+};
+
+const TYPE_TRANSLATIONS = {
+    "Movie": "Фильм",
+    "Series": "Сериал",
+    "Game": "Игра",
+    "Book": "Книга",
+    "Other": "Другое"
+};
+
+function getStatusDisplayName(status) {
+    if (!status) return "";
+    return STATUS_TRANSLATIONS[status.name] || status.name;
+}
+
+function getTypeDisplayName(type) {
+    if (!type) return "";
+    return TYPE_TRANSLATIONS[type.name] || type.name;
+}
+
 let items = [];
 let statuses = [];
 let types = [];
@@ -37,6 +62,19 @@ function setupEventListeners() {
         document.getElementById(
             "cancel-button"
         );
+        
+        
+    const addStatusButton = document.getElementById("add-status-button");
+    if (addStatusButton) {
+        addStatusButton.addEventListener("click", promptCreateStatus);
+    }
+
+    const addTypeButton = document.getElementById("add-type-button");
+    if (addTypeButton) {
+        addTypeButton.addEventListener("click", promptCreateType);
+    }
+
+    setupManageListeners()
 
     const form =
         document.getElementById(
@@ -245,8 +283,9 @@ function populateStatusSelects() {
     formSelect.innerHTML = '<option value="">Без статуса</option>';
 
     statuses.forEach(s => {
-        filterSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-        formSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        const displayName = getStatusDisplayName(s);
+        filterSelect.innerHTML += `<option value="${s.id}">${displayName}</option>`;
+        formSelect.innerHTML += `<option value="${s.id}">${displayName}</option>`;
     });
 }
 
@@ -258,51 +297,42 @@ function populateTypeSelects() {
     formSelect.innerHTML = '<option value="">Без типа</option>';
 
     types.forEach(t => {
-        filterSelect.innerHTML += `<option value="${t.id}">${t.name}</option>`;
-        formSelect.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+        const displayName = getTypeDisplayName(t);
+        filterSelect.innerHTML += `<option value="${t.id}">${displayName}</option>`;
+        formSelect.innerHTML += `<option value="${t.id}">${displayName}</option>`;
     });
 }
 
 function createItemCard(item) {
-    const card =
-        document.createElement("article");
+    const card = document.createElement("article");
 
     card.className = "item-card";
 
-    const header =
-        document.createElement("div");
+    const header = document.createElement("div");
 
     header.className = "item-header";
 
-    const title =
-        document.createElement("h2");
+    const title = document.createElement("h2");
 
     title.className = "item-title";
 
-    title.textContent =
-        item.title || "Без названия";
+    title.textContent = item.title || "Без названия";
 
     header.appendChild(title);
 
     card.appendChild(header);
 
     if (item.description) {
-        const description =
-            document.createElement("p");
+        const description = document.createElement("p");
 
-        description.className =
-            "item-description";
+        description.className = "item-description";
 
-        description.textContent =
-            item.description;
+        description.textContent = item.description;
 
-        card.appendChild(
-            description
-        );
+        card.appendChild(description);
     }
 
-    const meta =
-        document.createElement("div");
+    const meta = document.createElement("div");
 
     meta.className = "item-meta";
 
@@ -311,7 +341,7 @@ function createItemCard(item) {
         if (itemType) {
             const typeBadge = document.createElement("span");
             typeBadge.className = "item-type";
-            typeBadge.textContent = itemType.name;
+            typeBadge.textContent = getTypeDisplayName(itemType);
             meta.appendChild(typeBadge);
         }
     }
@@ -320,7 +350,7 @@ function createItemCard(item) {
         if (itemStatus) {
             const statusBadge = document.createElement("span");
             statusBadge.className = "status";
-            statusBadge.textContent = itemStatus.name;
+            statusBadge.textContent = getStatusDisplayName(itemStatus);
             meta.appendChild(statusBadge);
         }
     }
@@ -329,13 +359,11 @@ function createItemCard(item) {
     if (item.rating !== null &&
         item.rating !== undefined) {
 
-        const rating =
-            document.createElement("span");
+        const rating = document.createElement("span");
 
         rating.className = "rating";
 
-        rating.textContent =
-            `★ ${item.rating}/10`;
+        rating.textContent = `★ ${item.rating}/10`;
 
         meta.appendChild(rating);
     }
@@ -343,29 +371,23 @@ function createItemCard(item) {
     card.appendChild(meta);
 
     if (item.notes) {
-        const notes =
-            document.createElement("p");
+        const notes = document.createElement("p");
 
         notes.className = "item-notes";
 
-        notes.textContent =
-            item.notes;
+        notes.textContent = item.notes;
 
         card.appendChild(notes);
     }
 
-    const actions =
-        document.createElement("div");
+    const actions = document.createElement("div");
 
-    actions.className =
-        "item-actions";
+    actions.className = "item-actions";
 
-    const editButton =
-        document.createElement("button");
+    const editButton = document.createElement("button");
 
     editButton.type = "button";
-    editButton.textContent =
-        "Изменить";
+    editButton.textContent = "Изменить";
 
     editButton.addEventListener(
         "click",
@@ -374,15 +396,12 @@ function createItemCard(item) {
         }
     );
 
-    const deleteButton =
-        document.createElement("button");
+    const deleteButton = document.createElement("button");
 
     deleteButton.type = "button";
-    deleteButton.className =
-        "delete-button";
+    deleteButton.className = "delete-button";
 
-    deleteButton.textContent =
-        "Удалить";
+    deleteButton.textContent = "Удалить";
 
     deleteButton.addEventListener(
         "click",
@@ -584,6 +603,143 @@ async function saveItem(event) {
     closeModal();
 
     await loadItems();
+}
+
+function setupManageListeners() {
+    const manageStatusesBtn = document.getElementById("manage-statuses-button");
+    const manageTypesBtn = document.getElementById("manage-types-button");
+    const closeManageBtn = document.getElementById("close-manage-modal-button");
+    if (manageStatusesBtn) {
+        manageStatusesBtn.addEventListener("click", () => openManageModal("status"));
+    }
+    if (manageTypesBtn) {
+        manageTypesBtn.addEventListener("click", () => openManageModal("type"));
+    }
+    if (closeManageBtn) {
+        closeManageBtn.addEventListener("click", closeManageModal);
+    }
+}
+
+function openManageModal(mode) {
+    const titleEl = document.getElementById("manage-modal-title");
+    const listEl = document.getElementById("manage-items-list");
+    listEl.innerHTML = "";
+    if (mode === "status") {
+        titleEl.textContent = "Мои статусы";
+        const customStatuses = statuses.filter(s => s.user_id);
+        if (customStatuses.length === 0) {
+            listEl.innerHTML = '<li class="empty-message">У вас нет созданных статусов</li>';
+        } else {
+            customStatuses.forEach(s => {
+                const li = document.createElement("li");
+                li.className = "manage-list-item";
+                li.innerHTML = `
+                    <span>${s.name}</span>
+                    <button class="button-delete-small" type="button">Удалить</button>
+                `;
+                li.querySelector("button").addEventListener("click", () => deleteCustomStatus(s.id, s.name));
+                listEl.appendChild(li);
+            });
+        }
+    } else if (mode === "type") {
+        titleEl.textContent = "Мои типы";
+        const customTypes = types.filter(t => t.user_id);
+        if (customTypes.length === 0) {
+            listEl.innerHTML = '<li class="empty-message">У вас нет созданных типов</li>';
+        } else {
+            customTypes.forEach(t => {
+                const li = document.createElement("li");
+                li.className = "manage-list-item";
+                li.innerHTML = `
+                    <span>${t.name}</span>
+                    <button class="button-delete-small" type="button">Удалить</button>
+                `;
+                li.querySelector("button").addEventListener("click", () => deleteCustomType(t.id, t.name));
+                listEl.appendChild(li);
+            });
+        }
+    }
+    document.getElementById("manage-modal").classList.remove("hidden");
+}
+
+function closeManageModal() {
+    document.getElementById("manage-modal").classList.add("hidden");
+}
+
+async function promptCreateStatus() {
+    const name = prompt("Введите название нового статуса:");
+    if (!name || !name.trim()) return;
+
+    const { response, data } = await apiJson("/api/v1/item-statuses", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim() }),
+    });
+
+    if (!response.ok) {
+        alert(data?.error || "Не удалось создать статус.");
+        return;
+    }
+
+    await loadStatuses();
+
+    if (data?.id) {
+        document.getElementById("item-status").value = data.id;
+    }
+}
+
+async function promptCreateType() {
+    const name = prompt("Введите название нового типа записи:");
+    if (!name || !name.trim()) return;
+
+    const { response, data } = await apiJson("/api/v1/item-types", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim() }),
+    });
+
+    if (!response.ok) {
+        alert(data?.error || "Не удалось создать тип.");
+        return;
+    }
+
+    await loadTypes();
+
+    if (data?.id) {
+        document.getElementById("item-type").value = data.id;
+    }
+}
+
+async function deleteCustomStatus(id, name) {
+    if (!confirm(`Удалить статус "${name}"? У элементов с этим статусом он сбросится.`)) return;
+
+    const { response, data } = await apiJson(`/api/v1/item-statuses/${id}`, {
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        alert(data?.error || "Не удалось удалить статус.");
+        return;
+    }
+
+    await loadStatuses();
+    await loadItems();
+    openManageModal("status")
+}
+
+async function deleteCustomType(id, name) {
+    if (!confirm(`Удалить тип "${name}"? У элементов с этим типом он сбросится.`)) return;
+
+    const { response, data } = await apiJson(`/api/v1/item-types/${id}`, {
+        method: "DELETE"
+    });
+
+    if (!response.ok) {
+        alert(data?.error || "Не удалось удалить тип.");
+        return;
+    }
+
+    await loadTypes();
+    await loadItems();
+    openManageModal("type")
 }
 
 // Delete

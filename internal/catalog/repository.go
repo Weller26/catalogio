@@ -326,7 +326,7 @@ func (r *PostgresRepository) ListItemStatuses(
 	userID uuid.UUID,
 ) ([]ItemStatus, error) {
 	const query = `
-		SELECT id, name, created_at
+		SELECT id, name, user_id, created_at
 		FROM item_statuses
 		WHERE user_id IS NULL OR user_id = $1
 		ORDER BY created_at ASC
@@ -342,7 +342,7 @@ func (r *PostgresRepository) ListItemStatuses(
 	for rows.Next() {
 		var s ItemStatus
 
-		if err := rows.Scan(&s.ID, &s.Name, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.Name, &s.UserID, &s.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan item status: %w", err)
 		}
 
@@ -434,7 +434,7 @@ func (r *PostgresRepository) ListItemTypes(
 	userID uuid.UUID,
 ) ([]ItemType, error) {
 	const query = `
-		SELECT id, name, created_at
+		SELECT id, name, user_id, created_at
 		FROM item_types
 		WHERE user_id IS NULL OR user_id = $1
 		ORDER BY created_at ASC
@@ -450,7 +450,7 @@ func (r *PostgresRepository) ListItemTypes(
 	for rows.Next() {
 		var t ItemType
 
-		if err := rows.Scan(&t.ID, &t.Name, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.UserID, &t.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan item type: %w", err)
 		}
 
