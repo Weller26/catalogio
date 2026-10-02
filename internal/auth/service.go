@@ -19,18 +19,37 @@ var ErrInvalidCredentials = errors.New(
 	"invalid credentials",
 )
 
+type Repository interface {
+    CreateUser(ctx context.Context, email, passwordHash string) (User, error)
+
+    GetUserByEmail(ctx context.Context, email string) (User, string, error)
+    
+	GetUserByID(ctx context.Context, userID uuid.UUID) (User, error)
+    
+	CreateRefreshToken(
+		ctx context.Context,
+		userID uuid.UUID, tokenHash []byte, expiresAt time.Time,
+	) error
+    
+	GetRefreshToken(
+		ctx context.Context, tokenHash []byte,
+	) (uuid.UUID, time.Time, error)
+    
+	DeleteRefreshToken(ctx context.Context, tokenHash []byte) error
+}
+
 type Claims struct {
 	UserID string `json:"sub"`
 	jwt.RegisteredClaims
 }
 
 type Service struct {
-	repo *Repository
+	repo Repository
 	jwtSecret []byte
 }
 
 func NewService(
-	repo *Repository,
+	repo Repository,
 	jwtSecret string,
 ) *Service {
 	return &Service{
@@ -199,6 +218,23 @@ func (s *Service) Refresh(
     }
 
     return s.generateAccessToken(userID)
+}
+
+func (s *Service) GetUserByID(
+	ctx context.Context,
+	userId uuid.UUID,
+) (User, error) {
+	user, err := s.repo.GetUserByID(ctx, userId)
+
+	if errors.Is(err, ErrNotFound) {
+		return User{}, ErrInvalidCredentials
+	}
+
+	if err != nil {
+		return User{}, err
+	}
+
+	return user, err
 }
 
 func normalizeEmail(email string) string {

@@ -1,4 +1,4 @@
-package auth
+package httpresponse
 
 import (
 	"encoding/json"
@@ -9,27 +9,23 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
-func writeJSON(
+func WriteJSON(
 	w http.ResponseWriter,
 	status int,
 	data any,
 ) {
-	w.Header().Set(
-		"Content-Type",
-		"application/json",
-	)
-
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-func writeError(
+func WriteError(
 	w http.ResponseWriter,
 	status int,
 	message string,
 ) {
-	writeJSON(
+	WriteJSON(
 		w,
 		status,
 		errorResponse{

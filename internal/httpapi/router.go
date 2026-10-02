@@ -4,13 +4,13 @@ import (
 	"net/http"
 
 	"github.com/Weller26/catalogio/internal/auth"
-	"github.com/Weller26/catalogio/internal/items"
+	"github.com/Weller26/catalogio/internal/catalog"
 )
 
 func NewRouter(
-	authService *auth.Service,
 	authHandler *auth.Handler,
-	itemHandler *items.Handler,
+	itemHandler *catalog.Handler,
+	authMiddleware *AuthMiddleware,
 ) http.Handler {
 	mux := http.NewServeMux()
 
@@ -42,41 +42,83 @@ func NewRouter(
 
 	mux.Handle(
 		"GET /api/v1/me",
-		authService.RequireAuth(meHandler),
+		authMiddleware.requireAuth(meHandler),
 	)
 
 	mux.Handle(
 		"POST /api/v1/items",
-		authService.RequireAuth(
-			http.HandlerFunc(itemHandler.Create),
+		authMiddleware.requireAuth(
+			http.HandlerFunc(itemHandler.CreateItem),
 		),
 	)
 
 	mux.Handle(
 		"GET /api/v1/items",
-		authService.RequireAuth(
+		authMiddleware.requireAuth(
 			http.HandlerFunc(itemHandler.ListItems),
 		),
 	)
 
 	mux.Handle(
 		"GET /api/v1/items/{id}",
-		authService.RequireAuth(
+		authMiddleware.requireAuth(
 			http.HandlerFunc(itemHandler.GetItemByID),
 		),
 	)
 
 	mux.Handle(
 		"PUT /api/v1/items/{id}",
-		authService.RequireAuth(
+		authMiddleware.requireAuth(
 			http.HandlerFunc(itemHandler.UpdateItemByID),
 		),
 	)
 
 	mux.Handle(
 		"DELETE /api/v1/items/{id}",
-		authService.RequireAuth(
+		authMiddleware.requireAuth(
 			http.HandlerFunc(itemHandler.DeleteItemByID),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/item-statuses",
+		authMiddleware.requireAuth(
+			http.HandlerFunc(itemHandler.CreateItemStatus),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/item-statuses",
+		authMiddleware.requireAuth(
+			http.HandlerFunc(itemHandler.ListItemStatuses),
+		),
+	)
+
+	mux.Handle(
+		"DELETE /api/v1/item-statuses/{id}",
+		authMiddleware.requireAuth(
+			http.HandlerFunc(itemHandler.DeleteItemStatusByID),
+		),
+	)
+
+	mux.Handle(
+		"POST /api/v1/item-types",
+		authMiddleware.requireAuth(
+			http.HandlerFunc(itemHandler.CreateItemType),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/v1/item-types",
+		authMiddleware.requireAuth(
+			http.HandlerFunc(itemHandler.ListItemTypes),
+		),
+	)
+
+	mux.Handle(
+		"DELETE /api/v1/item-types/{id}",
+		authMiddleware.requireAuth(
+			http.HandlerFunc(itemHandler.DeleteItemTypeByID),
 		),
 	)
 
@@ -107,34 +149,22 @@ func NewRouter(
     )
 
     mux.Handle(
-        "GET /items.html",
+        "GET /catalog.html",
         http.FileServer(
             http.Dir("./web"),
         ),
     )
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(
-			w,
-			r,
-			"./web/login.html",
-		)
+		http.ServeFile(w, r, "./web/login.html")
 	})
 
-		mux.HandleFunc("GET /register", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(
-			w,
-			r,
-			"./web/register.html",
-		)
+	mux.HandleFunc("GET /register", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/register.html")
 	})
 
-		mux.HandleFunc("GET /items", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(
-			w,
-			r,
-			"./web/items.html",
-		)
+	mux.HandleFunc("GET /catalog", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "./web/catalog.html")
 	})
 
 	return mux

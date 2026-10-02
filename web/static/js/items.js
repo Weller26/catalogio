@@ -1,4 +1,6 @@
 let items = [];
+let statuses = [];
+let types = [];
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -11,6 +13,7 @@ async function initializeItemsPage() {
     setupEventListeners();
 
     await loadCurrentUser();
+    await Promise.all([loadStatuses(), loadTypes()]);
     await loadItems();
 }
 
@@ -49,6 +52,11 @@ function setupEventListeners() {
         document.getElementById(
             "status-filter"
         );
+
+    const typeFilter = document.getElementById("type-filter");
+    if (typeFilter) {
+        typeFilter.addEventListener("change", renderItems);
+    }
 
     addButton.addEventListener(
         "click",
@@ -158,6 +166,11 @@ function renderItems() {
             "status-filter"
         );
 
+    const typeFilter = 
+        document.getElementById(
+            "type-filter"
+        );
+
     const search =
         searchInput.value
             .trim()
@@ -165,6 +178,9 @@ function renderItems() {
 
     const status =
         statusFilter.value;
+
+    const type = 
+        typeFilter.value
 
     const filteredItems =
         items.filter((item) => {
@@ -174,13 +190,13 @@ function renderItems() {
                     .toLowerCase()
                     .includes(search);
 
-            const matchesStatus =
-                !status ||
-                item.status === status;
+            const matchesStatus = !status || item.status_id === status;
 
+            const matchesType = !type || item.type_id === type;
             return (
                 matchesSearch &&
-                matchesStatus
+                matchesStatus &&
+                matchesType
             );
         });
 
@@ -203,6 +219,48 @@ function renderItems() {
             createItemCard(item)
         );
     }
+}
+
+async function loadStatuses() {
+    const { response, data } = await apiJson("/api/v1/item-statuses");
+    if (response.ok && Array.isArray(data)) {
+        statuses = data;
+        populateStatusSelects();
+    }
+}
+
+async function loadTypes() {
+    const { response, data } = await apiJson("/api/v1/item-types");
+    if (response.ok && Array.isArray(data)) {
+        types = data;
+        populateTypeSelects();
+    }
+}
+
+function populateStatusSelects() {
+    const filterSelect = document.getElementById("status-filter");
+    const formSelect = document.getElementById("item-status");
+
+    filterSelect.innerHTML = '<option value="">Все статусы</option>';
+    formSelect.innerHTML = '<option value="">Без статуса</option>';
+
+    statuses.forEach(s => {
+        filterSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        formSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+    });
+}
+
+function populateTypeSelects() {
+    const filterSelect = document.getElementById("type-filter");
+    const formSelect = document.getElementById("item-type");
+
+    filterSelect.innerHTML = '<option value="">Все типы</option>';
+    formSelect.innerHTML = '<option value="">Без типа</option>';
+
+    types.forEach(t => {
+        filterSelect.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+        formSelect.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+    });
 }
 
 function createItemCard(item) {
@@ -248,19 +306,25 @@ function createItemCard(item) {
 
     meta.className = "item-meta";
 
-    if (item.status) {
-        const status =
-            document.createElement("span");
-
-        status.className = "status";
-
-        status.textContent =
-            getStatusLabel(
-                item.status
-            );
-
-        meta.appendChild(status);
+    if (item.type_id) {
+        const itemType = types.find(t => t.id === item.type_id);
+        if (itemType) {
+            const typeBadge = document.createElement("span");
+            typeBadge.className = "item-type";
+            typeBadge.textContent = itemType.name;
+            meta.appendChild(typeBadge);
+        }
     }
+    if (item.status_id) {
+        const itemStatus = statuses.find(s => s.id === item.status_id);
+        if (itemStatus) {
+            const statusBadge = document.createElement("span");
+            statusBadge.className = "status";
+            statusBadge.textContent = itemStatus.name;
+            meta.appendChild(statusBadge);
+        }
+    }
+
 
     if (item.rating !== null &&
         item.rating !== undefined) {
@@ -367,7 +431,11 @@ function openCreateModal() {
 
     document.getElementById(
         "item-status"
-    ).value = "planned";
+    ).value = "";
+
+    document.getElementById(
+        "item-type"
+    ).value = ""
 
     document.getElementById(
         "item-rating"
@@ -383,7 +451,7 @@ function openCreateModal() {
 function openEditModal(item) {
     document.getElementById(
         "modal-title"
-    ).textContent = "Редактировать item";
+    ).textContent = "Редактировать запись";
 
     document.getElementById(
         "item-id"
@@ -391,28 +459,27 @@ function openEditModal(item) {
 
     document.getElementById(
         "item-title"
-    ).value =
-        item.title || "";
+    ).value = item.title || "";
 
     document.getElementById(
         "item-description"
-    ).value =
-        item.description || "";
+    ).value = item.description || "";
 
     document.getElementById(
         "item-status"
-    ).value =
-        item.status || "planned";
+    ).value = item.status_id || "";
+
+    document.getElementById(
+        "item-type"
+    ).value = item.type_id || "";
 
     document.getElementById(
         "item-rating"
-    ).value =
-        item.rating ?? "";
+    ).value = item.rating ?? "";
 
     document.getElementById(
         "item-notes"
-    ).value =
-        item.notes || "";
+    ).value = item.notes || "";
 
     openModal();
 }
@@ -449,9 +516,14 @@ async function saveItem(event) {
             "item-description"
         ).value.trim();
 
-    const status =
+    const statusID =
         document.getElementById(
             "item-status"
+        ).value;
+
+    const typeID =
+        document.getElementById(
+            "item-type"
         ).value;
 
     const ratingValue =
@@ -465,14 +537,11 @@ async function saveItem(event) {
         ).value.trim();
 
     const payload = {
-        title: title || null,
-        description:
-            description || null,
-        status: status || null,
-        rating:
-            ratingValue === ""
-                ? null
-                : Number(ratingValue),
+        title: title,
+        description: description || null,
+        status_id: statusID || null,
+        type_id: typeID || null,
+        rating: ratingValue === "" ? null : Number(ratingValue),
         notes: notes || null,
     };
 

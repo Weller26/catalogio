@@ -98,7 +98,7 @@ function setupLoginForm(form) {
                 data.access_token;
 
             window.location.href =
-                "/items";
+                "/catalog";
         }
     );
 }

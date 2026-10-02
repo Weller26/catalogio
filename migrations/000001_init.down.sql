@@ -1,3 +1,5 @@
-DROP TABLE IF EXISTS users;
-DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS items;
+DROP TABLE IF EXISTS item_types;
+DROP TABLE IF EXISTS item_statuses;
+DROP TABLE IF EXISTS refresh_tokens;
+DROP TABLE IF EXISTS users;

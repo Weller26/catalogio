@@ -13,7 +13,7 @@ import (
 	"github.com/Weller26/catalogio/internal/auth"
 	"github.com/Weller26/catalogio/internal/database"
 	"github.com/Weller26/catalogio/internal/httpapi"
-	"github.com/Weller26/catalogio/internal/items"
+	"github.com/Weller26/catalogio/internal/catalog"
 
 	"github.com/joho/godotenv"
 )
@@ -57,14 +57,16 @@ func main() {
 		false,
 	)
 
-	itemRepository := items.NewRepository(db.Pool)
-	itemService := items.NewService(itemRepository)
-	itemHandler := items.NewHandler(itemService)
+	itemRepository := catalog.NewRepository(db.Pool)
+	itemService := catalog.NewService(itemRepository)
+	itemHandler := catalog.NewHandler(itemService)
+
+	authMiddleware := httpapi.NewAuthMiddleware(authService)
 
 	router := httpapi.NewRouter(
-		authService,
 		authHandler,
 		itemHandler,
+		authMiddleware,
 	)
 
 	server := http.Server{

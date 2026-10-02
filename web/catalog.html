@@ -10,7 +10,7 @@
 
 <header class="navbar">
     <div class="navbar-inner">
-        <a href="/items" class="logo">Catalogio</a>
+        <a href="/catalog" class="logo">Catalogio</a>
 
         <div class="navbar-actions">
             <span id="user-email" class="user-email"></span>
@@ -51,12 +51,12 @@
             placeholder="Поиск по названию..."
         >
 
+        <select id="type-filter">
+            <option value="">Все типы</option>
+        </select>
+
         <select id="status-filter">
             <option value="">Все статусы</option>
-            <option value="planned">Запланировано</option>
-            <option value="watching">В процессе</option>
-            <option value="completed">Завершено</option>
-            <option value="dropped">Брошено</option>
         </select>
     </section>
 
@@ -112,24 +112,16 @@
             <div class="form-row">
 
                 <div class="form-field">
+                    <label for="item-type">Тип</label>
+                    <select id="item-type">
+                        <option value="">Без типа</option>
+                    </select>
+                </div>
+
+                <div class="form-field">
                     <label for="item-status">Статус</label>
-
                     <select id="item-status">
-                        <option value="planned">
-                            Запланировано
-                        </option>
-
-                        <option value="watching">
-                            В процессе
-                        </option>
-
-                        <option value="completed">
-                            Завершено
-                        </option>
-
-                        <option value="dropped">
-                            Брошено
-                        </option>
+                        <option value="">Без статуса</option>
                     </select>
                 </div>
 

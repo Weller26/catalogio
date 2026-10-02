@@ -1,4 +1,4 @@
-package auth
+package httpapi
 
 import (
 	"context"
@@ -6,34 +6,24 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/google/uuid"
+	"github.com/Weller26/catalogio/internal/appcontext"
+	"github.com/Weller26/catalogio/internal/auth"
+	"github.com/Weller26/catalogio/internal/httpresponse"
 )
 
-type contextKey string
-
-const userIDContextKey contextKey = "user_id"
-
-// func UserFromContext(
-// 	ctx context.Context,
-// ) (User, bool) {
-// 	user, ok := ctx.Value(
-// 		userContextKey,
-// 	).(User)
-
-// 	return user, ok
-// }
-
-func UserIDFromContext(
-	ctx context.Context,
-) (uuid.UUID, bool) {
-	userID, ok := ctx.Value(
-		userIDContextKey,
-	).(uuid.UUID)
-
-	return userID, ok
+type AuthMiddleware struct {
+	authService *auth.Service
 }
 
-func (s *Service) RequireAuth(
+func NewAuthMiddleware(
+	authService *auth.Service,
+) *AuthMiddleware {
+	return &AuthMiddleware{
+		authService: authService,
+	}
+}
+
+func (m *AuthMiddleware) requireAuth(
 	next http.Handler,
 ) http.Handler {
 	return http.HandlerFunc(
@@ -41,10 +31,10 @@ func (s *Service) RequireAuth(
 			authHeader := r.Header.Get("Authorization")
 
 			if authHeader == "" {
-				writeError(
+				httpresponse.WriteError(
 					w,
 					http.StatusUnauthorized,
-					"autorization required",
+					"authorization required",
 				)
 				return
 			}
@@ -56,7 +46,7 @@ func (s *Service) RequireAuth(
 			)
 
 			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
-				writeError(
+				httpresponse.WriteError(
 					w,
 					http.StatusUnauthorized,
 					"invalid authorization header",
@@ -66,13 +56,13 @@ func (s *Service) RequireAuth(
 
 			accessToken := parts[1]
 
-			userID, err := s.Authenticate(
+			userID, err := m.authService.Authenticate(
 				r.Context(),
 				accessToken,
 			)
 
-			if errors.Is(err, ErrInvalidCredentials) {
-                writeError(
+			if errors.Is(err, auth.ErrInvalidCredentials) {
+                httpresponse.WriteError(
                     w,
                     http.StatusUnauthorized,
                     "unauthorized",
@@ -81,7 +71,7 @@ func (s *Service) RequireAuth(
             }
 
             if err != nil {
-                writeError(
+                httpresponse.WriteError(
                     w,
                     http.StatusInternalServerError,
                     "internal server error",
@@ -91,7 +81,7 @@ func (s *Service) RequireAuth(
 
             ctx := context.WithValue(
                 r.Context(),
-                userIDContextKey,
+                appcontext.UserIDContextKey,
                 userID,
             )
 

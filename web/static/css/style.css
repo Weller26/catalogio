@@ -354,6 +354,17 @@ a {
     margin-top: 16px;
 }
 
+.item-type {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #a0a6b2;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
 .status {
     display: inline-flex;
 

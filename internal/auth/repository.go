@@ -15,17 +15,17 @@ import (
 var ErrNotFound = errors.New("not found")
 var ErrEmailTaken = errors.New("email already exists")
 
-type Repository struct {
+type PostgresRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool) *Repository {
-	return &Repository{
+func NewRepository(db *pgxpool.Pool) *PostgresRepository {
+	return &PostgresRepository{
 		db: db,
 	}
 }
 
-func (r *Repository) CreateUser(
+func (r *PostgresRepository) CreateUser(
 	ctx context.Context,
 	email string,
 	passwordHash string,
@@ -67,7 +67,7 @@ func (r *Repository) CreateUser(
 	return user, nil
 }
 
-func (r *Repository) GetUserByEmail(
+func (r *PostgresRepository) GetUserByEmail(
 	ctx context.Context,
 	email string,
 ) (User, string, error) {
@@ -104,7 +104,7 @@ func (r *Repository) GetUserByEmail(
 	return user, passwordHash, nil
 }
 
-func (r *Repository) GetUserByID(
+func (r *PostgresRepository) GetUserByID(
 	ctx context.Context,
 	userID uuid.UUID,
 ) (User, error) {
@@ -139,7 +139,7 @@ func (r *Repository) GetUserByID(
 	return user, nil
 }
 
-func (r *Repository) CreateRefreshToken(
+func (r *PostgresRepository) CreateRefreshToken(
 	ctx context.Context,
 	userID uuid.UUID,
 	tokenHash []byte,
@@ -172,7 +172,7 @@ func (r *Repository) CreateRefreshToken(
 	return nil
 }
 
-func (r *Repository) GetRefreshToken(
+func (r *PostgresRepository) GetRefreshToken(
 	ctx context.Context,
 	tokenHash []byte,
 ) (uuid.UUID, time.Time, error) {
@@ -208,7 +208,7 @@ func (r *Repository) GetRefreshToken(
 	return userID, expiresAt, nil
 }
 
-func (r *Repository) DeleteRefreshToken(
+func (r *PostgresRepository) DeleteRefreshToken(
 	ctx context.Context,
 	tokenHash []byte,
 ) error {
@@ -232,100 +232,3 @@ func (r *Repository) DeleteRefreshToken(
 
 	return nil
 }
-
-// func (r *Repository) CreateSession(
-// 	ctx context.Context,
-// 	tokenHash []byte,
-// 	userID uuid.UUID,
-// 	expiresAt time.Time,
-// ) error {
-// 	const query = `
-// 		INSERT INTO sessions (
-// 			token_hash,
-// 			user_id,
-// 			expires_at
-// 		)
-// 		VALUES ($1, $2, $3)
-// 	`
-
-// 	_, err := r.db.Exec(
-// 		ctx,
-// 		query,
-// 		tokenHash,
-// 		userID,
-// 		expiresAt,
-// 	)
-
-// 	if err != nil {
-// 		return fmt.Errorf(
-// 			"create session: %w",
-// 			err,
-// 		)
-// 	}
-
-// 	return nil
-// }
-
-// func (r *Repository) GetUserBySession(
-// 	ctx context.Context,
-// 	tokenHash []byte,
-// ) (User, error) {
-// 	const query = `
-// 		SELECT
-// 			u.id,
-// 			u.email
-// 		FROM sessions s
-// 		JOIN users u ON u.id = s.user_id
-// 		WHERE s.token_hash = $1
-// 			AND s.expires_at > now()
-// 	`
-
-// 	var user User
-
-// 	err := r.db.QueryRow(
-// 		ctx,
-// 		query,
-// 		tokenHash,
-// 	).Scan(
-// 		&user.ID,
-// 		&user.Email,
-// 	)
-
-// 	if errors.Is(err, pgx.ErrNoRows) {
-// 		return User{}, ErrNotFound
-// 	}
-
-// 	if err != nil {
-// 		return User{}, fmt.Errorf(
-// 			"get user by session: %w", 
-// 			err,
-// 		)
-// 	}
-
-// 	return user, nil
-// }
-
-// func (r *Repository) DeleteSession(
-// 	ctx context.Context,
-// 	tokenHash []byte,
-// ) error {
-// 	const query = `
-// 		DELETE FROM sessions
-// 		WHERE token_hash = $1
-// 	`
-
-// 	_, err := r.db.Exec(
-// 		ctx,
-// 		query,
-// 		tokenHash,
-// 	)
-
-// 	if err != nil {
-// 		return fmt.Errorf(
-// 			"delete session: %w",
-// 			err,
-// 		)
-// 	}
-
-// 	return nil
-// }

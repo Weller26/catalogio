@@ -3,14 +3,15 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"time"
+
+	"github.com/Weller26/catalogio/internal/appcontext"
+	"github.com/Weller26/catalogio/internal/httpresponse"
 )
 
-const (
-	// accessTokenCookie = "catalogio_access_token"
-	refreshTokenCookie = "catalogio_refresh_token"
-)
+const refreshTokenCookie = "catalogio_refresh_token"
 
 type Handler struct {
 	service *Service
@@ -33,17 +34,13 @@ func (h *Handler) Register(
 ) {
 	var req RegisterRequest
 
-	r.Body = http.MaxBytesReader(
-		w,
-		r.Body,
-		1<<20,
-	)
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&req); err != nil {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusBadRequest,
 			"invalid JSON",
@@ -57,7 +54,7 @@ func (h *Handler) Register(
 	)
 
 	if errors.Is(err, ErrEmailTaken) {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusConflict,
 			"email already exists",
@@ -66,7 +63,7 @@ func (h *Handler) Register(
 	}
 
 	if err != nil {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusBadRequest,
 			err.Error(),
@@ -74,7 +71,7 @@ func (h *Handler) Register(
 		return
 	}
 
-	writeJSON(
+	httpresponse.WriteJSON(
 		w,
 		http.StatusCreated,
 		user,
@@ -87,17 +84,13 @@ func (h *Handler) Login(
 ) {
 	var req LoginRequest
 
-	r.Body = http.MaxBytesReader(
-		w,
-		r.Body,
-		1<<20,
-	)
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 
 	if err := decoder.Decode(&req); err != nil {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusBadRequest,
 			"invalid JSON",
@@ -111,7 +104,7 @@ func (h *Handler) Login(
 	)
 
 	if errors.Is(err, ErrInvalidCredentials) {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusUnauthorized,
 			"invalid email or password",
@@ -120,7 +113,7 @@ func (h *Handler) Login(
 	}
 
 	if err != nil {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusInternalServerError,
 			"internal server error",
@@ -128,13 +121,14 @@ func (h *Handler) Login(
 		return
 	}
 
-	//h.setAccessTokenCookie(w, accessToken)
 	h.setRefreshTokenCookie(w, refreshToken)
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	httpresponse.WriteJSON(w, http.StatusOK, map[string]any{
 		"user": user,
 		"access_token": accessToken,
 	})
+
+	log.Printf("user %s has logged in", req.Email)
 }
 
 func (h *Handler) Logout(
@@ -150,7 +144,7 @@ func (h *Handler) Logout(
 		)
 
 		if err != nil {
-			writeError(
+			httpresponse.WriteError(
 				w,
 				http.StatusInternalServerError,
 				"internal server error",
@@ -161,7 +155,7 @@ func (h *Handler) Logout(
 
 	h.deleteCookie(w, refreshTokenCookie)
 
-	writeJSON(w, http.StatusOK, map[string]string{
+	httpresponse.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "logged out",
 	})
 }
@@ -173,7 +167,7 @@ func (h *Handler) Refresh(
 	cookie, err := r.Cookie(refreshTokenCookie)
 
 	if err != nil {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusUnauthorized,
 			"refresh token required",
@@ -187,7 +181,7 @@ func (h *Handler) Refresh(
 	)
 
 	if errors.Is(err, ErrInvalidCredentials) {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusUnauthorized,
 			"invalid refresh token",
@@ -196,7 +190,7 @@ func (h *Handler) Refresh(
 	}
 
 	if err != nil {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusInternalServerError,
 			"internal server error",
@@ -204,7 +198,7 @@ func (h *Handler) Refresh(
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{
+	httpresponse.WriteJSON(w, http.StatusOK, map[string]string{
 			"access_token": accessToken,
 		},
 	)
@@ -214,12 +208,12 @@ func (h *Handler) Me(
 	w http.ResponseWriter,
 	r *http.Request,
 ) {
-	userID, ok := UserIDFromContext(
+	userID, ok := appcontext.UserIDFromContext(
 		r.Context(),
 	)
 
 	if !ok {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusUnauthorized,
 			"unauthorized",
@@ -227,13 +221,13 @@ func (h *Handler) Me(
 		return
 	}
 
-	user, err := h.service.repo.GetUserByID(
+	user, err := h.service.GetUserByID(
 		r.Context(),
 		userID,
 	)
 
 	if err != nil {
-		writeError(
+		httpresponse.WriteError(
 			w,
 			http.StatusInternalServerError,
 			"internal server error",
@@ -241,30 +235,12 @@ func (h *Handler) Me(
 		return
 	}
 
-	writeJSON(
+	httpresponse.WriteJSON(
 		w,
 		http.StatusOK,
 		user,
 	)
 }
-
-// func (h *Handler) setAccessTokenCookie(
-// 	w http.ResponseWriter,
-// 	token string,
-// ) {
-// 	http.SetCookie(
-// 		w,
-// 		&http.Cookie{
-// 			Name: accessTokenCookie,
-// 			Value: token,
-// 			Path: "/",
-// 			HttpOnly: true,
-// 			Secure: h.secureCookies,
-// 			SameSite: http.SameSiteLaxMode,
-// 			MaxAge: int((15 * time.Minute).Seconds()),
-// 		},
-// 	)
-// }
 
 func (h *Handler) setRefreshTokenCookie(
 	w http.ResponseWriter,
