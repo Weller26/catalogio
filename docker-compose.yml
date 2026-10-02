@@ -1,7 +1,27 @@
 services:
+  app:
+    build: .
+    container_name: catalogio-app
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: "${DB_NAME}"
+      DB_USER: "${DB_USER}"
+      DB_PASSWORD: "${DB_PASSWORD}"
+      DB_SSL_MODE: "${DB_SSL_MODE}"
+      SERVER_PORT: "${CONTAINER_PORT}"
+      JWT_SECRET: "${JWT_SECRET}"
+    ports:
+      - "${HOST_PORT}:${CONTAINER_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   postgres:
     image: postgres:18.6
-    container_name: catalogio
+    container_name: catalogio-db
     environment:
       POSTGRES_DB: "${DB_NAME}"
       POSTGRES_USER: "${DB_USER}"

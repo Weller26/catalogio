@@ -23,7 +23,11 @@ func main() {
 		log.Println(".env file not found")
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
 	defer stop()
 
 	cfg := database.Config {
@@ -32,7 +36,7 @@ func main() {
 		User: os.Getenv("DB_USER"),
 		Password: os.Getenv("DB_PASSWORD"),
 		DBName: os.Getenv("DB_NAME"),
-		SSLMode: "disable",
+		SSLMode: os.Getenv("DB_SSL_MODE"),
 		MaxConns: 10,
 		MinConns: 2,
 		MaxConnIdleTime: 5 * time.Minute,
