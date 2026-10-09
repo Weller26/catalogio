@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalogio-app
+  namespace: catalogio
+  labels:
+    app: catalogio-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalogio-app
+  template:
+    metadata:
+      labels:
+        app: catalogio-app
+    spec:
+      containers:
+        - name: catalogio
+          image: catalogio-app:1.0
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          envFrom:
+            - configMapRef:
+                name: catalogio-config
+            - secretRef:
+                name: catalogio-secrets
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogio-service
+  namespace: catalogio
+spec:
+  type: NodePort
+  selector:
+    app: catalogio-app
+  ports:
+    - port: 8080
+      targetPort: 8080
