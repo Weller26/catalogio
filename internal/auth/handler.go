@@ -3,7 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -41,9 +41,8 @@ func (h *Handler) Register(
 
 	if err := decoder.Decode(&req); err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusBadRequest,
-			"invalid JSON",
+			r.Context(), w, http.StatusBadRequest,
+			"registration failed: invalid JSON", err,
 		)
 		return
 	}
@@ -55,21 +54,23 @@ func (h *Handler) Register(
 
 	if errors.Is(err, ErrEmailTaken) {
 		httpresponse.WriteError(
-			w,
-			http.StatusConflict,
-			"email already exists",
+			r.Context(), w, http.StatusConflict,
+			"email already exists", err,
 		)
 		return
 	}
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusBadRequest,
-			err.Error(),
+			r.Context(), w, http.StatusBadRequest,
+			err.Error(), err,
 		)
 		return
 	}
+
+	slog.InfoContext(r.Context(), "user registered",
+		"user_id", user.ID,
+	)
 
 	httpresponse.WriteJSON(
 		w,
@@ -91,9 +92,8 @@ func (h *Handler) Login(
 
 	if err := decoder.Decode(&req); err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusBadRequest,
-			"invalid JSON",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid JSON", err,
 		)
 		return
 	}
@@ -105,18 +105,16 @@ func (h *Handler) Login(
 
 	if errors.Is(err, ErrInvalidCredentials) {
 		httpresponse.WriteError(
-			w,
-			http.StatusUnauthorized,
-			"invalid email or password",
+			r.Context(), w, http.StatusUnauthorized,
+			"login failed: invalid credentials", err,
 		)
 		return
 	}
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
@@ -128,7 +126,9 @@ func (h *Handler) Login(
 		"access_token": accessToken,
 	})
 
-	log.Printf("user %s has logged in", req.Email)
+	slog.InfoContext(r.Context(), "user logged in",
+		"user_id", user.ID.String(),
+	)
 }
 
 func (h *Handler) Logout(
@@ -145,9 +145,8 @@ func (h *Handler) Logout(
 
 		if err != nil {
 			httpresponse.WriteError(
-				w,
-				http.StatusInternalServerError,
-				"internal server error",
+				r.Context(), w, http.StatusInternalServerError,
+				"internal server error", err,
 			)
 			return
 		}
@@ -168,9 +167,8 @@ func (h *Handler) Refresh(
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusUnauthorized,
-			"refresh token required",
+			r.Context(), w, http.StatusUnauthorized,
+			"refresh token required", err,
 		)
 		return
 	}
@@ -182,18 +180,16 @@ func (h *Handler) Refresh(
 
 	if errors.Is(err, ErrInvalidCredentials) {
 		httpresponse.WriteError(
-			w,
-			http.StatusUnauthorized,
-			"invalid refresh token",
+			r.Context(), w, http.StatusUnauthorized,
+			"invalid refresh token", err,
 		)
 		return
 	}
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
@@ -214,9 +210,8 @@ func (h *Handler) Me(
 
 	if !ok {
 		httpresponse.WriteError(
-			w,
-			http.StatusUnauthorized,
-			"unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -228,9 +223,8 @@ func (h *Handler) Me(
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", nil,
 		)
 		return
 	}

@@ -94,11 +94,9 @@ function setupLoginForm(form) {
                 return;
             }
 
-            accessToken =
-                data.access_token;
-
-            window.location.href =
-                "/catalog";
+            accessToken = data.access_token;
+            localStorage.setItem("accessToken", data.access_token);
+            window.location.href = "/catalog";
         }
     );
 }
@@ -157,8 +155,7 @@ function setupRegisterForm(form) {
                 return;
             }
 
-            window.location.href =
-                "/";
+            window.location.href = "/";
         }
     );
 }

@@ -1,4 +1,4 @@
-let accessToken = null;
+let accessToken = localStorage.getItem("accessToken");
 
 async function refreshAccessToken() {
     const response = await fetch(
@@ -17,6 +17,7 @@ async function refreshAccessToken() {
     const data = await response.json();
 
     accessToken = data.access_token;
+    localStorage.setItem("accessToken", data.access_token);
 
     return true;
 }

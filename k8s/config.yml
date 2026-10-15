@@ -10,3 +10,4 @@ data:
   DB_USER: "postgres"
   DB_SSL_MODE: "disable"
   SERVER_PORT: "8080"
+  LOG_LEVEL: "INFO"

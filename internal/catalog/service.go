@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"errors"
 	"strings"
 
 	"github.com/google/uuid"
@@ -59,14 +58,8 @@ func (s *Service) CreateItem(
 	req CreateItemRequest,
 ) (Item, error) {
 	// TODO: create validate function
-	if strings.TrimSpace(req.Title) == "" {
-		return Item{}, errors.New("title cannot be empty")
-	}
-
-	if req.Rating != nil {
-		if *req.Rating < 0 || *req.Rating > 10 {
-			return Item{}, errors.New("rating must be between 0 and 10")
-		}
+	if err := validateItemRequest(req.Title, req.Rating); err != nil {
+		return Item{}, err
 	}
 
 	return s.repo.CreateItem(
@@ -102,15 +95,10 @@ func (s *Service) UpdateItemByID(
 	userID uuid.UUID,
 	req UpdateItemRequest,
 ) (Item, error) {
-	if strings.TrimSpace(req.Title) == "" {
-		return Item{}, errors.New("title cannot be empty")
+	if err := validateItemRequest(req.Title, req.Rating); err != nil {
+		return Item{}, err
 	}
 
-	if req.Rating != nil {
-		if *req.Rating < 0 || *req.Rating > 10 {
-			return Item{}, errors.New("rating must be between 0 and 10")
-		}
-	}
 	return s.repo.UpdateItemByID(
 		ctx,
 		itemID,
@@ -137,6 +125,10 @@ func (s *Service) CreateItemStatus(
 	userID uuid.UUID,
 	name string,
 ) (ItemStatus, error) {
+	if err := validateRequestWithName(name); err != nil {
+		return ItemStatus{}, err
+	}
+
 	return s.repo.CreateItemStatus(
 		ctx,
 		userID,
@@ -164,6 +156,10 @@ func (s *Service) CreateItemType(
 	userID uuid.UUID,
 	name string,
 ) (ItemType, error) {
+	if err := validateRequestWithName(name); err != nil {
+		return ItemType{}, err
+	}
+
 	return s.repo.CreateItemType(
 		ctx,
 		userID,
@@ -184,4 +180,26 @@ func (s *Service) DeleteItemTypeByID(
 	userID uuid.UUID,
 ) (ItemType, error) {
 	return s.repo.DeleteItemTypeByID(ctx, typeID, userID)
+}
+
+func validateItemRequest(title string, rating *float64) error {
+	if strings.TrimSpace(title) == "" {
+		return NewValidationError("title cannot be empty")
+	}
+
+	if rating != nil && (*rating < 0 || *rating > 10) {
+		return NewValidationError(
+			"rating must be between 0 and 10, got %.1f", *rating,
+		)
+	}
+
+	return nil
+}
+
+func validateRequestWithName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return NewValidationError("name cannot be empty")
+	}
+
+	return nil
 }

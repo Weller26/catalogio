@@ -167,5 +167,5 @@ func NewRouter(
 		http.ServeFile(w, r, "./web/catalog.html")
 	})
 
-	return mux
+	return LoggingMiddleware(mux)
 }

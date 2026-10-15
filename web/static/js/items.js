@@ -178,7 +178,7 @@ async function loadItems() {
 
     items = Array.isArray(data)
         ? data
-        : data.items || [];
+        : (data?.items || []);
 
     renderItems();
 }
@@ -797,9 +797,9 @@ async function logout() {
     );
 
     accessToken = null;
+    localStorage.removeItem("accessToken")
 
-    window.location.href =
-        "/";
+    window.location.href = "/";
 }
 
 // Errors
@@ -814,8 +814,7 @@ function showError(message) {
         return;
     }
 
-    errorElement.textContent =
-        message;
+    errorElement.textContent = message;
 }
 
 function clearError() {

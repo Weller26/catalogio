@@ -3,25 +3,51 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/Weller26/catalogio/internal/auth"
+	"github.com/Weller26/catalogio/internal/catalog"
 	"github.com/Weller26/catalogio/internal/database"
 	"github.com/Weller26/catalogio/internal/httpapi"
-	"github.com/Weller26/catalogio/internal/catalog"
-
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Println(".env file not found")
+	var level slog.Level
+	switch strings.ToUpper(os.Getenv("LOG_LEVEL")) {
+	case "DEBUG":
+		level = slog.LevelDebug
+	case "WARN":
+		level = slog.LevelWarn
+	case "ERROR":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
 	}
+
+	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: level,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			switch a.Key {
+			case slog.TimeKey:
+				a.Key = "timestamp"
+			case slog.MessageKey:
+				a.Key = "message"
+			}
+			return a
+		},
+	})
+
+	logger := slog.New(handler).With(
+		slog.String("service.name", "catalogio"),
+	)
+
+	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -45,11 +71,14 @@ func main() {
 
 	db, err := database.New(ctx, cfg)
 	if err != nil {
-		log.Fatalf("Failed to connect to the database: %v", err)
+		slog.ErrorContext(ctx, "failed to connect to the database",
+			"error", err,
+		)
+		os.Exit(1)
 	}
 	defer db.Close()
 
-	log.Println("Successful connection to PostgreSQL")
+	slog.InfoContext(ctx, "successful connection to PostgreSQL")
 
 	authRepo := auth.NewRepository(db.Pool)
 	authService := auth.NewService(
@@ -80,23 +109,20 @@ func main() {
 	}
 
 	go func() {
-		log.Printf(
-			"server started on: %s",
-			os.Getenv("SERVER_PORT"),
-		)
+		slog.InfoContext(ctx, "server started",
+			"server_port", os.Getenv("SERVER_PORT"))
 
-		if err := server.ListenAndServe(); err != nil &&
+		if err := server.ListenAndServe(); err != nil && 
 			err != http.ErrServerClosed {
-			log.Fatalf(
-				"server error: %v",
-				err,
+			slog.ErrorContext(ctx, "server error",
+				"error", err,
 			)
 		}
 	}()
 
 	<-ctx.Done()
 
-	log.Println("shutting down server...")
+	slog.InfoContext(ctx, "shutting down server")
 
 	shutdownCtx, cancel := context.WithTimeout(
 		context.Background(),
@@ -105,11 +131,10 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf(
-			"server shutdown error: %v",
-			err,
+		slog.ErrorContext(ctx, "server shutdown error",
+			"error", err,
 		)
 	}
 
-	log.Println("server stopped")
+	slog.InfoContext(ctx, "server stopped")
 }

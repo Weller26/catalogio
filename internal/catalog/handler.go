@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"log/slog"
 
 	"github.com/Weller26/catalogio/internal/appcontext"
 	"github.com/Weller26/catalogio/internal/httpresponse"
@@ -24,9 +25,8 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, 
-			http.StatusUnauthorized,
-			"unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -40,7 +40,8 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 
 	if err := decoder.Decode(&req); err != nil {
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, "invalid request body",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid request body", err,
 		)
 		return
 	}
@@ -52,11 +53,27 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		var valErr *ValidationError
+		if errors.As(err, &valErr) {
+			httpresponse.WriteError(
+				r.Context(), w, http.StatusBadRequest,
+				valErr.Message, err,
+			)
+			return
+		}
+
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, err.Error(),
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+	slog.InfoContext(r.Context(), "item created",
+		"item_id", item.ID.String(),
+		"user_id", userID.String(),
+		"title", req.Title,
+	)
 
 	httpresponse.WriteJSON(w, http.StatusCreated, item)
 }
@@ -65,9 +82,8 @@ func (h *Handler) ListItems(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w,
-			http.StatusUnauthorized,
-			"unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -81,12 +97,17 @@ func (h *Handler) ListItems(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+	slog.DebugContext(
+		r.Context(), "items retrieved",
+		"count", len(items),
+		"user_id", userID.String(),
+	)
 
 	httpresponse.WriteJSON(w, http.StatusOK, items)
 }
@@ -95,7 +116,8 @@ func (h *Handler) GetItemByID(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, http.StatusUnauthorized, "unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -105,27 +127,26 @@ func (h *Handler) GetItemByID(w http.ResponseWriter, r *http.Request) {
 	itemID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, "invalid item id",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid item id", err,
 		)
 		return
 	}
 
-	item, err := h.service.GetItemByID(
-		r.Context(),
-		itemID,
-		userID,
-	)
+	item, err := h.service.GetItemByID(r.Context(), itemID, userID)
 
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			httpresponse.WriteError(
-				w, http.StatusNotFound, "item not found",
+				r.Context(), w, http.StatusNotFound,
+				"item not found", err,
 			)
 			return
 		}
 
 		httpresponse.WriteError(
-			w, http.StatusInternalServerError, "internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
@@ -137,7 +158,8 @@ func (h *Handler) UpdateItemByID(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, http.StatusUnauthorized, "unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -147,7 +169,8 @@ func (h *Handler) UpdateItemByID(w http.ResponseWriter, r *http.Request) {
 	itemID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, "invalid item id",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid item id", err,
 		)
 		return
 	}
@@ -159,7 +182,8 @@ func (h *Handler) UpdateItemByID(w http.ResponseWriter, r *http.Request) {
 
 	if err := decoder.Decode(&req); err != nil {
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, "invalid request body",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid request body", err,
 		)
 		return
 	}
@@ -172,18 +196,35 @@ func (h *Handler) UpdateItemByID(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		var valErr *ValidationError
+		if errors.As(err, &valErr) {
+			httpresponse.WriteError(
+				r.Context(), w, http.StatusBadRequest,
+				valErr.Message, err,
+			)
+			return
+		}
+
 		if errors.Is(err, ErrNotFound) {
 			httpresponse.WriteError(
-				w, http.StatusNotFound, "item not found",
+				r.Context(), w, http.StatusNotFound,
+				"item not found", err,
 			)
 			return
 		}
 
 		httpresponse.WriteError(
-			w, http.StatusInternalServerError, "internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+	slog.InfoContext(r.Context(), "item updated",
+		"item_id", item.ID.String(),
+		"user_id", userID.String(),
+		"title", item.Title,
+	)
 
 	httpresponse.WriteJSON(w, http.StatusOK, item)
 }
@@ -192,7 +233,8 @@ func (h *Handler) DeleteItemByID(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, http.StatusUnauthorized, "unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -202,7 +244,8 @@ func (h *Handler) DeleteItemByID(w http.ResponseWriter, r *http.Request) {
 	itemID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, "invalid item id",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid item id", err,
 		)
 		return
 	}
@@ -216,16 +259,24 @@ func (h *Handler) DeleteItemByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			httpresponse.WriteError(
-				w, http.StatusNotFound, "item not found",
+				r.Context(), w, http.StatusNotFound,
+				"item not found", err,
 			)
 			return
 		}
 
 		httpresponse.WriteError(
-			w, http.StatusInternalServerError, "internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+	slog.InfoContext(r.Context(), "item deleted",
+		"item_id", item.ID.String(),
+		"user_id", userID.String(),
+		"title", item.Title,
+	)
 
 	httpresponse.WriteJSON(w, http.StatusOK, item)
 }
@@ -234,9 +285,8 @@ func (h *Handler) CreateItemStatus(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, 
-			http.StatusUnauthorized,
-			"unauthorized",
+			r.Context(), w,  http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -250,7 +300,10 @@ func (h *Handler) CreateItemStatus(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	
 	if err := decoder.Decode(&req); err != nil {
-		httpresponse.WriteError(w, http.StatusBadRequest, "invalid json")
+		httpresponse.WriteError(
+			r.Context(), w, http.StatusBadRequest,
+			"invalid json", err,
+		)
 		return
 	}
 
@@ -261,11 +314,27 @@ func (h *Handler) CreateItemStatus(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		var valErr *ValidationError
+		if errors.As(err, &valErr) {
+			httpresponse.WriteError(
+				r.Context(), w, http.StatusBadRequest,
+				valErr.Message, err,
+			)
+			return
+		}
+
 		httpresponse.WriteError(
-			w, http.StatusInternalServerError, "internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+	slog.InfoContext(r.Context(), "item status created",
+		"item_status_id", itemStatus.ID.String(),
+		"user_id", userID.String(),
+		"title", itemStatus.Name,
+	)
 
 	httpresponse.WriteJSON(w, http.StatusCreated, itemStatus)
 }
@@ -274,9 +343,8 @@ func (h *Handler) ListItemStatuses(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w,
-			http.StatusUnauthorized,
-			"unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -290,9 +358,8 @@ func (h *Handler) ListItemStatuses(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
@@ -304,7 +371,8 @@ func (h *Handler) DeleteItemStatusByID(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, http.StatusUnauthorized, "unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -314,7 +382,8 @@ func (h *Handler) DeleteItemStatusByID(w http.ResponseWriter, r *http.Request) {
 	itemStatusID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, "invalid item status id",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid item status id", err,
 		)
 		return
 	}
@@ -328,16 +397,24 @@ func (h *Handler) DeleteItemStatusByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			httpresponse.WriteError(
-				w, http.StatusNotFound, "item status not found",
+				r.Context(), w, http.StatusNotFound,
+				"item status not found", err,
 			)
 			return
 		}
 
 		httpresponse.WriteError(
-			w, http.StatusInternalServerError, "internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+		slog.InfoContext(r.Context(), "item created",
+		"item_status_id", itemStatus.ID.String(),
+		"user_id", userID.String(),
+		"title", itemStatus.Name,
+	)
 
 	httpresponse.WriteJSON(w, http.StatusOK, itemStatus)
 }
@@ -346,9 +423,8 @@ func (h *Handler) CreateItemType(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, 
-			http.StatusUnauthorized,
-			"unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -362,7 +438,10 @@ func (h *Handler) CreateItemType(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	
 	if err := decoder.Decode(&req); err != nil {
-		httpresponse.WriteError(w, http.StatusBadRequest, "invalid json")
+		httpresponse.WriteError(
+			r.Context(), w, http.StatusBadRequest,
+			"invalid json", err,
+		)
 		return
 	}
 
@@ -373,11 +452,27 @@ func (h *Handler) CreateItemType(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
+		var valErr *ValidationError
+		if errors.As(err, &valErr) {
+			httpresponse.WriteError(
+				r.Context(), w, http.StatusBadRequest,
+				valErr.Message, err,
+			)
+			return
+		}
+
 		httpresponse.WriteError(
-			w, http.StatusInternalServerError, "internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+	slog.InfoContext(r.Context(), "item type created",
+		"item_type_id", itemType.ID.String(),
+		"user_id", userID.String(),
+		"title", itemType.Name,
+	)
 
 	httpresponse.WriteJSON(w, http.StatusCreated, itemType)
 }
@@ -386,9 +481,8 @@ func (h *Handler) ListItemTypes(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w,
-			http.StatusUnauthorized,
-			"unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -402,9 +496,8 @@ func (h *Handler) ListItemTypes(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		httpresponse.WriteError(
-			w,
-			http.StatusInternalServerError,
-			"internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
@@ -416,7 +509,8 @@ func (h *Handler) DeleteItemTypeByID(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			w, http.StatusUnauthorized, "unauthorized",
+			r.Context(), w, http.StatusUnauthorized,
+			"unauthorized", nil,
 		)
 		return
 	}
@@ -426,7 +520,8 @@ func (h *Handler) DeleteItemTypeByID(w http.ResponseWriter, r *http.Request) {
 	itemTypeID, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		httpresponse.WriteError(
-			w, http.StatusBadRequest, "invalid item type id",
+			r.Context(), w, http.StatusBadRequest,
+			"invalid item type id", err,
 		)
 		return
 	}
@@ -440,16 +535,24 @@ func (h *Handler) DeleteItemTypeByID(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			httpresponse.WriteError(
-				w, http.StatusNotFound, "item type not found",
+				r.Context(), w, http.StatusNotFound,
+				"item type not found", err,
 			)
 			return
 		}
 
 		httpresponse.WriteError(
-			w, http.StatusInternalServerError, "internal server error",
+			r.Context(), w, http.StatusInternalServerError,
+			"internal server error", err,
 		)
 		return
 	}
+
+	slog.InfoContext(r.Context(), "item type created",
+		"item_type_id", itemType.ID.String(),
+		"user_id", userID.String(),
+		"title", itemType.Name,
+	)
 
 	httpresponse.WriteJSON(w, http.StatusOK, itemType)
 }

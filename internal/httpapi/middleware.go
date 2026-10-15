@@ -3,13 +3,39 @@ package httpapi
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/Weller26/catalogio/internal/appcontext"
 	"github.com/Weller26/catalogio/internal/auth"
 	"github.com/Weller26/catalogio/internal/httpresponse"
 )
+
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/api/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		requestID := uuid.New().String()
+		ctx := context.WithValue(r.Context(), "request_id", requestID)
+		
+		start := time.Now()
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+
+		slog.InfoContext(ctx, "http request",
+			"method", r.Method,
+			"path", r.URL.Path,
+			"request_id", requestID,
+			"duration_ms", time.Since(start).Milliseconds(),
+		)
+	})
+}
 
 type AuthMiddleware struct {
 	authService *auth.Service
@@ -32,9 +58,8 @@ func (m *AuthMiddleware) requireAuth(
 
 			if authHeader == "" {
 				httpresponse.WriteError(
-					w,
-					http.StatusUnauthorized,
-					"authorization required",
+					r.Context(), w, http.StatusUnauthorized,
+					"authorization required", nil,
 				)
 				return
 			}
@@ -47,9 +72,8 @@ func (m *AuthMiddleware) requireAuth(
 
 			if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") || parts[1] == "" {
 				httpresponse.WriteError(
-					w,
-					http.StatusUnauthorized,
-					"invalid authorization header",
+					r.Context(), w, http.StatusUnauthorized,
+					"invalid authorization header", nil,
 				)
 				return
 			}
@@ -63,21 +87,24 @@ func (m *AuthMiddleware) requireAuth(
 
 			if errors.Is(err, auth.ErrInvalidCredentials) {
                 httpresponse.WriteError(
-                    w,
-                    http.StatusUnauthorized,
-                    "unauthorized",
+                    r.Context(), w, http.StatusUnauthorized,
+                    "unauthorized", err,
                 )
                 return
             }
 
             if err != nil {
                 httpresponse.WriteError(
-                    w,
-                    http.StatusInternalServerError,
-                    "internal server error",
+                    r.Context(), w, http.StatusInternalServerError,
+                    "internal server error", err,
                 )
                 return
             }
+
+			slog.DebugContext(
+				r.Context(), "access token verified",
+				"user_id", userID.String(),
+			)
 
             ctx := context.WithValue(
                 r.Context(),
