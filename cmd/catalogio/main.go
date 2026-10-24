@@ -15,6 +15,7 @@ import (
 	"github.com/Weller26/catalogio/internal/catalog"
 	"github.com/Weller26/catalogio/internal/database"
 	"github.com/Weller26/catalogio/internal/httpapi"
+	"github.com/Weller26/catalogio/internal/metrics"
 )
 
 func main() {
@@ -79,6 +80,18 @@ func main() {
 	defer db.Close()
 
 	slog.InfoContext(ctx, "successful connection to PostgreSQL")
+
+	initEntityCount := func(table, label string) {
+		var count float64
+		query := fmt.Sprintf("SELECT count(*) FROM %s", table)
+		if err := db.Pool.QueryRow(ctx, query).Scan(&count); err == nil {
+			metrics.EntitiesCurrent.WithLabelValues(label).Set(count)
+		}
+	}
+
+	initEntityCount("items", "item")
+	initEntityCount("item_statuses", "item-status")
+	initEntityCount("item_types", "item-type")
 
 	authRepo := auth.NewRepository(db.Pool)
 	authService := auth.NewService(

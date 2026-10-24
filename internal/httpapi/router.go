@@ -5,6 +5,7 @@ import (
 
 	"github.com/Weller26/catalogio/internal/auth"
 	"github.com/Weller26/catalogio/internal/catalog"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewRouter(
@@ -122,6 +123,8 @@ func NewRouter(
 		),
 	)
 
+	mux.Handle("GET /metrics", promhttp.Handler())
+
 	// frontend
 
 	mux.Handle(
@@ -167,5 +170,5 @@ func NewRouter(
 		http.ServeFile(w, r, "./web/catalog.html")
 	})
 
-	return LoggingMiddleware(mux)
+	return MetricsMiddleware(LoggingMiddleware(mux))
 }

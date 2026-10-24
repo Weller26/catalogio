@@ -9,6 +9,7 @@ import (
 
 	"github.com/Weller26/catalogio/internal/appcontext"
 	"github.com/Weller26/catalogio/internal/httpresponse"
+	"github.com/Weller26/catalogio/internal/metrics"
 )
 
 const refreshTokenCookie = "catalogio_refresh_token"
@@ -68,6 +69,8 @@ func (h *Handler) Register(
 		return
 	}
 
+	metrics.UsersRegisteredTotal.Inc()
+
 	slog.InfoContext(r.Context(), "user registered",
 		"user_id", user.ID,
 	)
@@ -104,6 +107,7 @@ func (h *Handler) Login(
 	)
 
 	if errors.Is(err, ErrInvalidCredentials) {
+		metrics.AuthAttemptsTotal.WithLabelValues("failure").Inc()
 		httpresponse.WriteError(
 			r.Context(), w, http.StatusUnauthorized,
 			"login failed: invalid credentials", err,
@@ -112,6 +116,7 @@ func (h *Handler) Login(
 	}
 
 	if err != nil {
+		metrics.AuthAttemptsTotal.WithLabelValues("failure").Inc()
 		httpresponse.WriteError(
 			r.Context(), w, http.StatusInternalServerError,
 			"internal server error", err,
@@ -125,6 +130,8 @@ func (h *Handler) Login(
 		"user": user,
 		"access_token": accessToken,
 	})
+
+	metrics.AuthAttemptsTotal.WithLabelValues("success").Inc()
 
 	slog.InfoContext(r.Context(), "user logged in",
 		"user_id", user.ID.String(),

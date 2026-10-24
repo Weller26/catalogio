@@ -5,14 +5,55 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/Weller26/catalogio/internal/appcontext"
 	"github.com/Weller26/catalogio/internal/auth"
 	"github.com/Weller26/catalogio/internal/httpresponse"
+	"github.com/Weller26/catalogio/internal/metrics"
+	"github.com/google/uuid"
 )
+
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func newResponseWriter(w http.ResponseWriter) *responseWriter {
+	return &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func MetricsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/metrics" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		start := time.Now()
+		rw := newResponseWriter(w)
+
+		next.ServeHTTP(rw, r)
+
+		duration := time.Since(start).Seconds()
+
+		pattern := r.Pattern
+		if pattern == "" {
+			pattern = r.URL.Path
+		}
+		statusStr := strconv.Itoa(rw.statusCode)
+
+		metrics.HTTPRequestsTotal.WithLabelValues(r.Method, pattern, statusStr).Inc()
+		metrics.HTTPRequestsDuration.WithLabelValues(r.Method, pattern, statusStr).Observe(duration)
+	})
+}
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

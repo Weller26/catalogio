@@ -3,11 +3,12 @@ package catalog
 import (
 	"encoding/json"
 	"errors"
-	"net/http"
 	"log/slog"
+	"net/http"
 
 	"github.com/Weller26/catalogio/internal/appcontext"
 	"github.com/Weller26/catalogio/internal/httpresponse"
+	"github.com/Weller26/catalogio/internal/metrics"
 	"github.com/google/uuid"
 )
 
@@ -68,6 +69,9 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
+	metrics.ItemsCreatedTotal.Inc()
+	metrics.EntitiesCurrent.WithLabelValues("item").Inc()
 
 	slog.InfoContext(r.Context(), "item created",
 		"item_id", item.ID.String(),
@@ -272,6 +276,8 @@ func (h *Handler) DeleteItemByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	metrics.EntitiesCurrent.WithLabelValues("item").Dec()
+
 	slog.InfoContext(r.Context(), "item deleted",
 		"item_id", item.ID.String(),
 		"user_id", userID.String(),
@@ -329,6 +335,8 @@ func (h *Handler) CreateItemStatus(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
+	metrics.EntitiesCurrent.WithLabelValues("item-status").Inc()
 
 	slog.InfoContext(r.Context(), "item status created",
 		"item_status_id", itemStatus.ID.String(),
@@ -410,7 +418,9 @@ func (h *Handler) DeleteItemStatusByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		slog.InfoContext(r.Context(), "item created",
+	metrics.EntitiesCurrent.WithLabelValues("item-status").Dec()
+
+	slog.InfoContext(r.Context(), "item created",
 		"item_status_id", itemStatus.ID.String(),
 		"user_id", userID.String(),
 		"title", itemStatus.Name,
@@ -467,6 +477,8 @@ func (h *Handler) CreateItemType(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
+	metrics.EntitiesCurrent.WithLabelValues("item-type").Inc()
 
 	slog.InfoContext(r.Context(), "item type created",
 		"item_type_id", itemType.ID.String(),
@@ -547,6 +559,8 @@ func (h *Handler) DeleteItemTypeByID(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
+
+	metrics.EntitiesCurrent.WithLabelValues("item-type").Dec()
 
 	slog.InfoContext(r.Context(), "item type created",
 		"item_type_id", itemType.ID.String(),
