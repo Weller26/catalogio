@@ -8,7 +8,28 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func NewRouter(
+func NewInternalRouter() http.Handler {
+	mux := http.NewServeMux()
+
+	mux.Handle("GET /metrics", promhttp.Handler())
+
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	mux.HandleFunc("POST /api/v1/chaos/slow", handleChaosSlow)
+
+	mux.HandleFunc("POST /api/v1/chaos/fail", handleChaosFail)
+	
+	mux.HandleFunc("POST /api/v1/chaos/reset", handleChaosReset)
+	
+	mux.HandleFunc("GET /api/v1/chaos/status", handleChaosStatus)
+
+	return mux
+}
+
+func NewPublicRouter(
 	authHandler *auth.Handler,
 	itemHandler *catalog.Handler,
 	authMiddleware *AuthMiddleware,
@@ -123,8 +144,6 @@ func NewRouter(
 		),
 	)
 
-	mux.Handle("GET /metrics", promhttp.Handler())
-
 	// frontend
 
 	mux.Handle(
@@ -170,5 +189,5 @@ func NewRouter(
 		http.ServeFile(w, r, "./web/catalog.html")
 	})
 
-	return MetricsMiddleware(LoggingMiddleware(mux))
+	return MetricsMiddleware(ChaosMiddleware(LoggingMiddleware(mux)))
 }

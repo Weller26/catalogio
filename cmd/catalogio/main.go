@@ -109,33 +109,55 @@ func main() {
 
 	authMiddleware := httpapi.NewAuthMiddleware(authService)
 
-	router := httpapi.NewRouter(
+	publicRouter := httpapi.NewPublicRouter(
 		authHandler,
 		itemHandler,
 		authMiddleware,
 	)
 
-	server := http.Server{
-		Addr: fmt.Sprintf(":%s", os.Getenv("SERVER_PORT")),
-		Handler: router,
+	internalRouter := httpapi.NewInternalRouter()
+
+	publicPort := os.Getenv("SERVER_PORT")
+	internalPort := os.Getenv("INTERNAL_PORT")
+
+	publicServer := http.Server{
+		Addr: ":" + publicPort,
+		Handler: publicRouter,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	internalServer := http.Server{
+		Addr: ":" + internalPort,
+		Handler: internalRouter,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	go func() {
-		slog.InfoContext(ctx, "server started",
-			"server_port", os.Getenv("SERVER_PORT"))
+		slog.InfoContext(ctx, "public server started",
+			"port", publicPort)
 
-		if err := server.ListenAndServe(); err != nil && 
+		if err := publicServer.ListenAndServe(); err != nil && 
 			err != http.ErrServerClosed {
-			slog.ErrorContext(ctx, "server error",
+			slog.ErrorContext(ctx, "public server error",
+				"error", err,
+			)
+		}
+	}()
+
+	go func() {
+		slog.InfoContext(ctx, "internal server started",
+			"port", internalPort)
+
+		if err := internalServer.ListenAndServe(); err != nil && 
+			err != http.ErrServerClosed {
+			slog.ErrorContext(ctx, "internal server error",
 				"error", err,
 			)
 		}
 	}()
 
 	<-ctx.Done()
-
-	slog.InfoContext(ctx, "shutting down server")
+	slog.InfoContext(ctx, "shutting down servers...")
 
 	shutdownCtx, cancel := context.WithTimeout(
 		context.Background(),
@@ -143,11 +165,17 @@ func main() {
 	)
 	defer cancel()
 
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.ErrorContext(ctx, "server shutdown error",
+	if err := publicServer.Shutdown(shutdownCtx); err != nil {
+		slog.ErrorContext(ctx, "public server shutdown error",
 			"error", err,
 		)
 	}
 
-	slog.InfoContext(ctx, "server stopped")
+	if err := internalServer.Shutdown(shutdownCtx); err != nil {
+		slog.ErrorContext(ctx, "internal server shutdown error",
+			"error", err,
+		)
+	}
+
+	slog.InfoContext(ctx, "all servers stopped")
 }

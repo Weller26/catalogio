@@ -16,7 +16,7 @@ spec:
         app: catalogio-app
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/port: "8080"
+        prometheus.io/port: "8081"
         prometheus.io/path: "/metrics"
     spec:
       containers:
@@ -31,7 +31,10 @@ spec:
               cpu: 250m
               memory: 128Mi
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+            - name: internal
+              containerPort: 8081
           readinessProbe:
             httpGet:
               path: /
@@ -54,6 +57,7 @@ spec:
   selector:
     app: catalogio-app
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
       nodePort: 30080
