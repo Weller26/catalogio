@@ -1,31 +1,41 @@
 # Catalogio
 
-Catalogio — веб-приложение для личного каталога фильмов, сериалов, книг, игр и чего угодно.
-Пользователь регистрируется, создаёт элементы каталога, указывает тип, статус, оценку, описание и заметки, а также редактирует и удаляет их.
+Веб-приложение для ведения личного каталога (фильмы, сериалы, книги, игры) с JWT-аутентификацией, сбором метрик в VictoriaMetrics, агрегацией логов через Vector в VictoriaLogs, дашбордами в Grafana и алертингом в Telegram через vmalert и Alertmanager.
 
-## Стек
+**Стек:** Go 1.27 (`net/http`), PostgreSQL 18, VictoriaMetrics, Vector, VictoriaLogs, Grafana, vmalert, Alertmanager, Docker, Kubernetes.
 
-- Go 1.27, стандартная библиотека `net/http`
-- PostgreSQL 18
-- pgx
-- HTML, CSS и JavaScript
-- Docker и Docker Compose
-- golang-migrate
+---
 
-## Возможности
+## Развёртывание в Kubernetes
 
-- Регистрация, вход, выход и обновление JWT access token.
-- CRUD для элементов каталога.
-- Пользовательские типы и статусы.
-- Фильтрация списка по названию, типу и статусу.
-- Изоляция данных между пользователями.
-
-## Быстрый запуск
-
+### 1. Переменные окружения
+Создайте файл `.env` из примера и укажите секреты (пароли, JWT, токен Telegram-бота и chat ID):
 ```bash
 cp .env.example .env
-# Укажите в .env JWT_SECRET, параметры базы данных и порты для контейнера и хоста
-docker compose up --build
 ```
 
-После запуска приложение доступно по адресу http://localhost:${HOST_PORT}
+### 2. Установка VictoriaMetrics (Helm)
+```bash
+helm repo add vm https://victoriametrics.github.io/helm-charts/
+helm repo update
+helm install vm-single vm/victoria-metrics-single -n monitoring --create-namespace -f helm/guide-vmsingle-values.yaml
+```
+
+### 3. Запуск всех компонентов
+Скрипт создаст неймспейсы, подставит секреты и применит все манифесты:
+```bash
+./scripts/apply-manifests.sh
+```
+
+### 4. Проброс портов
+```bash
+./scripts/port-forward.sh
+```
+
+### Доступ к сервисам:
+- **Catalogio (приложение):** http://localhost:8080
+- **Grafana:** http://localhost:3000 (логин: `admin`, пароль из `.env`)
+- **VictoriaLogs:** http://localhost:9428
+- **Alertmanager:** http://localhost:9093
+- **Vmalert:** http://localhost:8880
+- **VictoriaMetrics:** http://localhost:8428

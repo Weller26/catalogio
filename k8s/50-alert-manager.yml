@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 30s
+      repeat_interval: 1h
+      receiver: telegram-notifications
+
+    receivers:
+      - name: telegram-notifications
+        telegram_configs:
+          - bot_token_file: '/etc/alertmanager/secrets/telegram_bot_token'
+            chat_id_file: '/etc/alertmanager/secrets/telegram_chat_id'
+            parse_mode: 'HTML'
+            message: |
+              {{ if eq .Status "firing" }}<b>[СБОЙ]</b>{{ else }}<b>[РЕШЕНО]</b>{{ end }}<b> {{ .CommonLabels.alertname }}</b>
+              
+              <b>Сервис:</b> {{ .CommonLabels.service }}
+              <b>Важность:</b> {{ .CommonLabels.severity }}
+              
+              {{ range .Alerts }}
+              <b>Проблема:</b> {{ .Annotations.summary }}
+              <b>Детали:</b> {{ .Annotations.description }}
+              <b>Старт (UTC):</b> {{ .StartsAt.Format "15:04:05" }}
+              {{ end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: monitoring
+  labels:
+    app: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+    spec:
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:v0.34.2
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          args:
+            - --config.file=/etc/alertmanager/alertmanager.yml
+          ports:
+            - containerPort: 9093
+              name: http
+          volumeMounts:
+            - name: config
+              mountPath: /etc/alertmanager
+            - name: telegram-secret-vol
+              mountPath: /etc/alertmanager/secrets
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: alertmanager-config
+        - name: telegram-secret-vol
+          secret:
+            secretName: alertmanager-telegram
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: monitoring
+spec:
+  selector:
+    app: alertmanager
+  ports:
+    - port: 9093
+      targetPort: 9093

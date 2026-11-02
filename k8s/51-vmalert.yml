@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vmalert-rules
+  namespace: monitoring
+data:
+  alerts.yml: |
+      groups:
+      - name: catalogio-service
+        interval: 30s
+        rules:
+          - alert: HighErrorRate
+            expr: sum(rate(http_requests_total{status=~"5.."}[1m])) / sum(rate(http_requests_total[1m])) > 0.1
+            for: 1m
+            labels:
+              severity: critical
+              service: catalogio
+            annotations:
+              summary: "Доля ошибок 5xx выше 10%"
+              description: "Текущая доля ошибок: {{ $value | humanizePercentage }}"
+          - alert: HighLatencyP95
+            expr: histogram_quantile(0.95, sum(rate(http_requests_duration_seconds_bucket[1m])) by (le)) > 0.1
+            for: 1m
+            labels:
+              severity: warning
+              service: catalogio
+            annotations:
+              summary: "Высокая задержка ответов (P95 > 100мс)"
+              description: "Текущая задержка ответов P95: {{ $value | humanizeDuration }}. Нарушен SLO по скорости ответа."
+      - name: catalogio-runtime
+        interval: 30s
+        rules:
+          - alert: HighMemoryUsage
+            expr: process_resident_memory_bytes{app="catalogio-app"} > 80 * 1024 * 1024
+            for: 1m
+            labels:
+              severity: warning
+              service: catalogio
+            annotations:
+              summary: "Высокое потребление пямяти процессом"
+              description: "Процесс занимает {{ $value | humanize1024 }} памяти при лимите 128Mib. Опасность OOM."
+          - alert: HighGoroutineCount
+            expr: go_goroutines{app="catalogio-app"} > 100
+            for: 1m
+            labels: 
+              severity: warning
+              service: catalogio
+            annotations:
+              summary: "Аномальное число горутин"
+              description: "Число горутин достигло {{ $value }}. Возможна утечка ресурсов в рантайме Go."
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vmalert
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vmalert
+  template:
+    metadata:
+      labels:
+        app: vmalert
+    spec:
+      containers:
+        - name: vmalert
+          image: victoriametrics/vmalert:v1.155.0
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          args:
+            - -datasource.url=http://vm-single-victoria-metrics-single-server:8428
+            - -remoteWrite.url=http://vm-single-victoria-metrics-single-server:8428
+            - -notifier.url=http://alertmanager:9093
+            - -rule=/etc/vmalert/rules/*.yml
+          ports:
+            - containerPort: 8880
+              name: http
+          volumeMounts:
+            - name: rules-volume
+              mountPath: /etc/vmalert/rules
+      volumes:
+        - name: rules-volume
+          configMap:
+            name: vmalert-rules
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vmalert
+  namespace: monitoring
+spec:
+  selector:
+    app: vmalert
+  ports:
+  - port: 8880
+    targetPort: 8880
+    name: http
