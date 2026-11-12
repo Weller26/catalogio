@@ -2,12 +2,12 @@ package catalog
 
 import (
 	"context"
-	"fmt"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var ErrNotFound = errors.New("item not found")
@@ -16,7 +16,7 @@ type PostgresRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewRepository(db *pgxpool.Pool) *PostgresRepository{
+func NewRepository(db *pgxpool.Pool) *PostgresRepository {
 	return &PostgresRepository{db: db}
 }
 

@@ -57,15 +57,15 @@ func main() {
 	)
 	defer stop()
 
-	cfg := database.Config {
-		Host: os.Getenv("DB_HOST"),
-		Port: os.Getenv("DB_PORT"),
-		User: os.Getenv("DB_USER"),
-		Password: os.Getenv("DB_PASSWORD"),
-		DBName: os.Getenv("DB_NAME"),
-		SSLMode: os.Getenv("DB_SSL_MODE"),
-		MaxConns: 10,
-		MinConns: 2,
+	cfg := database.Config{
+		Host:            os.Getenv("DB_HOST"),
+		Port:            os.Getenv("DB_PORT"),
+		User:            os.Getenv("DB_USER"),
+		Password:        os.Getenv("DB_PASSWORD"),
+		DBName:          os.Getenv("DB_NAME"),
+		SSLMode:         os.Getenv("DB_SSL_MODE"),
+		MaxConns:        10,
+		MinConns:        2,
 		MaxConnIdleTime: 5 * time.Minute,
 		MaxConnLifetime: 1 * time.Hour,
 	}
@@ -121,14 +121,14 @@ func main() {
 	internalPort := os.Getenv("INTERNAL_PORT")
 
 	publicServer := http.Server{
-		Addr: ":" + publicPort,
-		Handler: publicRouter,
+		Addr:              ":" + publicPort,
+		Handler:           publicRouter,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	internalServer := http.Server{
-		Addr: ":" + internalPort,
-		Handler: internalRouter,
+		Addr:              ":" + internalPort,
+		Handler:           internalRouter,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -136,7 +136,7 @@ func main() {
 		slog.InfoContext(ctx, "public server started",
 			"port", publicPort)
 
-		if err := publicServer.ListenAndServe(); err != nil && 
+		if err := publicServer.ListenAndServe(); err != nil &&
 			err != http.ErrServerClosed {
 			slog.ErrorContext(ctx, "public server error",
 				"error", err,
@@ -148,7 +148,7 @@ func main() {
 		slog.InfoContext(ctx, "internal server started",
 			"port", internalPort)
 
-		if err := internalServer.ListenAndServe(); err != nil && 
+		if err := internalServer.ListenAndServe(); err != nil &&
 			err != http.ErrServerClosed {
 			slog.ErrorContext(ctx, "internal server error",
 				"error", err,
@@ -161,7 +161,7 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(
 		context.Background(),
-		10 * time.Second,
+		10*time.Second,
 	)
 	defer cancel()
 

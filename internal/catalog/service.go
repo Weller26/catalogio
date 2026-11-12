@@ -10,7 +10,7 @@ import (
 type Repository interface {
 	CreateItem(
 		ctx context.Context,
-		userID uuid.UUID, 
+		userID uuid.UUID,
 		title string, description *string,
 		statusID, typeID *uuid.UUID,
 		rating *float64, notes *string,
@@ -43,7 +43,7 @@ type Repository interface {
 }
 
 type Service struct {
-	repo Repository	
+	repo Repository
 }
 
 func NewService(repo Repository) *Service {

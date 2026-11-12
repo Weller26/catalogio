@@ -15,7 +15,7 @@ import (
 const refreshTokenCookie = "catalogio_refresh_token"
 
 type Handler struct {
-	service *Service
+	service       *Service
 	secureCookies bool
 }
 
@@ -24,7 +24,7 @@ func NewHandler(
 	secureCookies bool,
 ) *Handler {
 	return &Handler{
-		service: service,
+		service:       service,
 		secureCookies: secureCookies,
 	}
 }
@@ -127,7 +127,7 @@ func (h *Handler) Login(
 	h.setRefreshTokenCookie(w, refreshToken)
 
 	httpresponse.WriteJSON(w, http.StatusOK, map[string]any{
-		"user": user,
+		"user":         user,
 		"access_token": accessToken,
 	})
 
@@ -202,8 +202,8 @@ func (h *Handler) Refresh(
 	}
 
 	httpresponse.WriteJSON(w, http.StatusOK, map[string]string{
-			"access_token": accessToken,
-		},
+		"access_token": accessToken,
+	},
 	)
 }
 
@@ -250,13 +250,13 @@ func (h *Handler) setRefreshTokenCookie(
 	http.SetCookie(
 		w,
 		&http.Cookie{
-			Name: refreshTokenCookie,
-			Value: token,
-			Path: "/",
+			Name:     refreshTokenCookie,
+			Value:    token,
+			Path:     "/",
 			HttpOnly: true,
-			Secure: h.secureCookies,
+			Secure:   h.secureCookies,
 			SameSite: http.SameSiteLaxMode,
-			MaxAge: int((24 * time.Hour).Seconds()),
+			MaxAge:   int((24 * time.Hour).Seconds()),
 		},
 	)
 }
@@ -268,13 +268,13 @@ func (h *Handler) deleteCookie(
 	http.SetCookie(
 		w,
 		&http.Cookie{
-			Name: name,
-			Value: "",
-			Path: "/",
+			Name:     name,
+			Value:    "",
+			Path:     "/",
 			HttpOnly: true,
-			Secure: h.secureCookies,
+			Secure:   h.secureCookies,
 			SameSite: http.SameSiteLaxMode,
-			MaxAge: -1,
+			MaxAge:   -1,
 		},
 	)
 }

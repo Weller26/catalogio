@@ -1,9 +1,11 @@
 stages:
+  - test
   - build
   - deploy
 
 workflow:
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - when: never
 
@@ -19,6 +21,8 @@ variables:
 build-push:
   stage: build
   image: fiit/docker-cli:lab
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   script:
     - |
       set -eu
@@ -39,6 +43,8 @@ deploy:
   resource_group: catalogio
   environment:
     name: local
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   script:
     - |
       set -eu
@@ -64,3 +70,25 @@ deploy:
 
       kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" \
         get pods -l app=catalogio-app
+
+test:
+  stage: test
+  image: golang:1.27.1
+  script:
+    - |
+      set -eu
+
+      UNFORMATTED="$(gofmt -l cmd internal)"
+      if [ -n "$UNFORMATTED" ]; then
+        echo "Нужно отформатировать файлы:"
+        printf '%s\n' "$UNFORMATTED"
+        exit 1
+      fi
+
+      go mod verify
+      go vet ./...
+      go test -v -coverprofile=coverage.out ./...
+  artifacts:
+    when: always
+    paths:
+      - coverage.out

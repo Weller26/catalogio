@@ -3,19 +3,19 @@ package database
 import (
 	"context"
 	"fmt"
-	"time"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"time"
 )
 
 type Config struct {
-	Host 			string
-	Port 			string
-	User 			string
-	Password 		string
-	DBName 			string
-	SSLMode 		string
-	MaxConns 		int32
-	MinConns 		int32
+	Host            string
+	Port            string
+	User            string
+	Password        string
+	DBName          string
+	SSLMode         string
+	MaxConns        int32
+	MinConns        int32
 	MaxConnLifetime time.Duration
 	MaxConnIdleTime time.Duration
 }
@@ -26,7 +26,7 @@ type DB struct {
 
 func New(ctx context.Context, cfg Config) (*DB, error) {
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode,
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName, cfg.SSLMode,
 	)
 
 	poolConfig, err := pgxpool.ParseConfig(dsn)
@@ -52,7 +52,7 @@ func New(ctx context.Context, cfg Config) (*DB, error) {
 		return nil, fmt.Errorf("Failed to create a connection pool: %w", err)
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, 3 * time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
 	if err := pool.Ping(pingCtx); err != nil {

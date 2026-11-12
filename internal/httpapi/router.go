@@ -21,9 +21,9 @@ func NewInternalRouter() http.Handler {
 	mux.HandleFunc("POST /api/v1/chaos/slow", handleChaosSlow)
 
 	mux.HandleFunc("POST /api/v1/chaos/fail", handleChaosFail)
-	
+
 	mux.HandleFunc("POST /api/v1/chaos/reset", handleChaosReset)
-	
+
 	mux.HandleFunc("GET /api/v1/chaos/status", handleChaosStatus)
 
 	return mux
@@ -147,35 +147,35 @@ func NewPublicRouter(
 	// frontend
 
 	mux.Handle(
-        "GET /static/",
-        http.StripPrefix(
-            "/static/",
-            http.FileServer(
-                http.Dir("./web/static"),
-            ),
-        ),
-    )
+		"GET /static/",
+		http.StripPrefix(
+			"/static/",
+			http.FileServer(
+				http.Dir("./web/static"),
+			),
+		),
+	)
 
-    mux.Handle(
-        "GET /login.html",
-        http.FileServer(
-            http.Dir("./web"),
-        ),
-    )
+	mux.Handle(
+		"GET /login.html",
+		http.FileServer(
+			http.Dir("./web"),
+		),
+	)
 
-    mux.Handle(
-        "GET /register.html",
-        http.FileServer(
-            http.Dir("./web"),
-        ),
-    )
+	mux.Handle(
+		"GET /register.html",
+		http.FileServer(
+			http.Dir("./web"),
+		),
+	)
 
-    mux.Handle(
-        "GET /catalog.html",
-        http.FileServer(
-            http.Dir("./web"),
-        ),
-    )
+	mux.Handle(
+		"GET /catalog.html",
+		http.FileServer(
+			http.Dir("./web"),
+		),
+	)
 
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "./web/login.html")

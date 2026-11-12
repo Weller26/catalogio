@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -20,21 +20,21 @@ var ErrInvalidCredentials = errors.New(
 )
 
 type Repository interface {
-    CreateUser(ctx context.Context, email, passwordHash string) (User, error)
+	CreateUser(ctx context.Context, email, passwordHash string) (User, error)
 
-    GetUserByEmail(ctx context.Context, email string) (User, string, error)
-    
+	GetUserByEmail(ctx context.Context, email string) (User, string, error)
+
 	GetUserByID(ctx context.Context, userID uuid.UUID) (User, error)
-    
+
 	CreateRefreshToken(
 		ctx context.Context,
 		userID uuid.UUID, tokenHash []byte, expiresAt time.Time,
 	) error
-    
+
 	GetRefreshToken(
 		ctx context.Context, tokenHash []byte,
 	) (uuid.UUID, time.Time, error)
-    
+
 	DeleteRefreshToken(ctx context.Context, tokenHash []byte) error
 }
 
@@ -44,7 +44,7 @@ type Claims struct {
 }
 
 type Service struct {
-	repo Repository
+	repo      Repository
 	jwtSecret []byte
 }
 
@@ -53,7 +53,7 @@ func NewService(
 	jwtSecret string,
 ) *Service {
 	return &Service{
-		repo: repo,
+		repo:      repo,
 		jwtSecret: []byte(jwtSecret),
 	}
 }
@@ -96,7 +96,7 @@ func (s *Service) Login(
 	user, passwordHash, err := s.repo.GetUserByEmail(ctx, email)
 
 	if errors.Is(err, ErrNotFound) {
-		return  User{}, "", "", ErrInvalidCredentials
+		return User{}, "", "", ErrInvalidCredentials
 	}
 
 	if err != nil {
@@ -206,18 +206,18 @@ func (s *Service) Refresh(
 	)
 
 	if errors.Is(err, ErrNotFound) {
-        return "", ErrInvalidCredentials
-    }
+		return "", ErrInvalidCredentials
+	}
 
-    if err != nil {
-        return "", err
-    }
+	if err != nil {
+		return "", err
+	}
 
-    if time.Now().After(expiresAt) {
-        return "", ErrInvalidCredentials
-    }
+	if time.Now().After(expiresAt) {
+		return "", ErrInvalidCredentials
+	}
 
-    return s.generateAccessToken(userID)
+	return s.generateAccessToken(userID)
 }
 
 func (s *Service) GetUserByID(

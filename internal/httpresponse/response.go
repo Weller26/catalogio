@@ -3,8 +3,8 @@ package httpresponse
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"log/slog"
+	"net/http"
 )
 
 type errorResponse struct {

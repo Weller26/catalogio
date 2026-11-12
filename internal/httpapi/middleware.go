@@ -64,7 +64,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		requestID := uuid.New().String()
 		ctx := context.WithValue(r.Context(), "request_id", requestID)
-		
+
 		start := time.Now()
 
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -127,36 +127,36 @@ func (m *AuthMiddleware) requireAuth(
 			)
 
 			if errors.Is(err, auth.ErrInvalidCredentials) {
-                httpresponse.WriteError(
-                    r.Context(), w, http.StatusUnauthorized,
-                    "unauthorized", err,
-                )
-                return
-            }
+				httpresponse.WriteError(
+					r.Context(), w, http.StatusUnauthorized,
+					"unauthorized", err,
+				)
+				return
+			}
 
-            if err != nil {
-                httpresponse.WriteError(
-                    r.Context(), w, http.StatusInternalServerError,
-                    "internal server error", err,
-                )
-                return
-            }
+			if err != nil {
+				httpresponse.WriteError(
+					r.Context(), w, http.StatusInternalServerError,
+					"internal server error", err,
+				)
+				return
+			}
 
 			slog.DebugContext(
 				r.Context(), "access token verified",
 				"user_id", userID.String(),
 			)
 
-            ctx := context.WithValue(
-                r.Context(),
-                appcontext.UserIDContextKey,
-                userID,
-            )
+			ctx := context.WithValue(
+				r.Context(),
+				appcontext.UserIDContextKey,
+				userID,
+			)
 
-            next.ServeHTTP(
-                w,
-                r.WithContext(ctx),
-            )
+			next.ServeHTTP(
+				w,
+				r.WithContext(ctx),
+			)
 		},
 	)
 }

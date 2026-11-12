@@ -33,7 +33,7 @@ func (h *Handler) CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
-	
+
 	var req CreateItemRequest
 
 	decoder := json.NewDecoder(r.Body)
@@ -291,7 +291,7 @@ func (h *Handler) CreateItemStatus(w http.ResponseWriter, r *http.Request) {
 	userID, ok := appcontext.UserIDFromContext(r.Context())
 	if !ok {
 		httpresponse.WriteError(
-			r.Context(), w,  http.StatusUnauthorized,
+			r.Context(), w, http.StatusUnauthorized,
 			"unauthorized", nil,
 		)
 		return
@@ -304,7 +304,7 @@ func (h *Handler) CreateItemStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	
+
 	if err := decoder.Decode(&req); err != nil {
 		httpresponse.WriteError(
 			r.Context(), w, http.StatusBadRequest,
@@ -446,7 +446,7 @@ func (h *Handler) CreateItemType(w http.ResponseWriter, r *http.Request) {
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	
+
 	if err := decoder.Decode(&req); err != nil {
 		httpresponse.WriteError(
 			r.Context(), w, http.StatusBadRequest,

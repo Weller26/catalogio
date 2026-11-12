@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	chaosDelayMs atomic.Int64
+	chaosDelayMs      atomic.Int64
 	chaosErrorPercent atomic.Int64
 )
 
