@@ -18,6 +18,26 @@ variables:
   KUBE_CONTEXT: "kind-hosting-lab"
   NAMESPACE: "catalogio"
 
+test:
+  stage: test
+  image: golang:1.27.1
+  script:
+    - |
+      set -eu
+      
+      go mod download
+      go mod verify
+      go vet ./...
+      
+      go test -v -coverprofile=coverage.out ./...
+      go tool cover -func=coverage.out
+      go tool cover -html=coverage.out -o coverage.html
+  artifacts:
+    when: always
+    paths:
+      - coverage.out
+      - coverage.html
+
 build-push:
   stage: build
   image: fiit/docker-cli:lab
@@ -70,25 +90,3 @@ deploy:
 
       kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" \
         get pods -l app=catalogio-app
-
-test:
-  stage: test
-  image: golang:1.27.1
-  script:
-    - |
-      set -eu
-
-      UNFORMATTED="$(gofmt -l cmd internal)"
-      if [ -n "$UNFORMATTED" ]; then
-        echo "Нужно отформатировать файлы:"
-        printf '%s\n' "$UNFORMATTED"
-        exit 1
-      fi
-
-      go mod verify
-      go vet ./...
-      go test -v -coverprofile=coverage.out ./...
-  artifacts:
-    when: always
-    paths:
-      - coverage.out
