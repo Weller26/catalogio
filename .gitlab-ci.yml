@@ -1,0 +1,66 @@
+stages:
+  - build
+  - deploy
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - when: never
+
+default:
+  tags:
+    - local-docker
+
+variables:
+  IMAGE_REPOSITORY: "localhost:5001/catalogio-app"
+  KUBE_CONTEXT: "kind-hosting-lab"
+  NAMESPACE: "catalogio"
+
+build-push:
+  stage: build
+  image: fiit/docker-cli:lab
+  script:
+    - |
+      set -eu
+
+      APP_IMAGE="${IMAGE_REPOSITORY}:${CI_COMMIT_SHA}"
+
+      docker info
+      docker build -t "$APP_IMAGE" .
+      docker push "$APP_IMAGE"
+
+deploy:
+  stage: deploy
+  image:
+    name: dtzar/helm-kubectl:4.3.0
+    entrypoint: [""]
+  needs:
+    - build-push
+  resource_group: catalogio
+  environment:
+    name: local
+  script:
+    - |
+      set -eu
+
+      test -s "$KUBECONFIG"
+      APP_IMAGE="${IMAGE_REPOSITORY}:${CI_COMMIT_SHA}"
+
+      kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" \
+        set image deployment/catalogio-app \
+        catalogio="$APP_IMAGE"
+
+      kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" \
+        rollout status deployment/catalogio-app --timeout=180s
+
+      DEPLOYED_IMAGE="$(
+        kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" \
+          get deployment/catalogio-app \
+          -o jsonpath='{.spec.template.spec.containers[?(@.name=="catalogio")].image}'
+      )"
+
+      echo "Deployed image: $DEPLOYED_IMAGE"
+      test "$DEPLOYED_IMAGE" = "$APP_IMAGE"
+
+      kubectl --context "$KUBE_CONTEXT" -n "$NAMESPACE" \
+        get pods -l app=catalogio-app
