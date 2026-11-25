@@ -1,15 +1,9 @@
-.env
-.env.*
+**
+!go.mod
+!go.sum
+!cmd/
+!internal/
+!web/
 
-.git
-.gitignore
-
-*.exe
-
-.vscode/
-
-*.md
-*.log
-docker-compose*.yml
-Dockerfile*
-.dockerignore
+**/.env
+**/.env.*
